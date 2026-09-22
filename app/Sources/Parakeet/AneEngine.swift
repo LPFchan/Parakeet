@@ -1,3 +1,4 @@
+import CoreML
 import FluidAudio
 import Foundation
 
@@ -5,7 +6,7 @@ import Foundation
 /// Parakeet (English-only v2), whose encoder runs on the Neural Engine.
 final class AneEngine: Transcriber {
     private static let sr = 16_000.0
-    private static let tick = 0.2          // seconds of new audio between re-transcriptions
+    private static let tick = Double(ProcessInfo.processInfo.environment["PK_TICK"] ?? "") ?? 0.2          // seconds of new audio between re-transcriptions
     private static let pause = 0.8         // silence after the last word that locks everything in
     private static let settle = 1.0        // a sentence must end this long before "now" to lock in
     private static let maxBuffer = 14.0    // stay inside the model's single 15 s window
@@ -22,7 +23,11 @@ final class AneEngine: Transcriber {
         let emit = { (event: EngineEvent) in DispatchQueue.main.async { onEvent(event) } }
         task = Task.detached(priority: .userInitiated) { [weak self] in
             do {
-                let models = try await AsrModels.downloadAndLoad(version: .v2)
+                let env = ProcessInfo.processInfo.environment
+                let units: [String: MLComputeUnits] = ["cpu": .cpuOnly, "ane": .cpuAndNeuralEngine, "gpu": .cpuAndGPU, "all": .all]
+                let config = MLModelConfiguration()
+                config.computeUnits = units[env["PK_REST"] ?? "ane"]!
+                let models = try await AsrModels.downloadAndLoad(configuration: config, version: .v2, encoderComputeUnits: units[env["PK_ENC"] ?? "ane"]!)
                 let asr = AsrManager(config: .default)
                 try await asr.loadModels(models)
                 emit(.ready)

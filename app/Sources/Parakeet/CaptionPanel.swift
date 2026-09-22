@@ -24,8 +24,10 @@ final class Captions {
     }
 
     func lock(_ text: String) {
-        transcript.append(text)
-        locked = locked.isEmpty ? text : locked + " " + text
+        // Streaming models can deliver a sentence's full stop after the pause.
+        let attaches = text.first.map { ".,?!".contains($0) } ?? false
+        if attaches, !transcript.isEmpty { transcript[transcript.count - 1] += text } else { transcript.append(text) }
+        locked = locked.isEmpty ? text : locked + (attaches ? "" : " ") + text
         // Only ~3 lines are on screen; text above them has scrolled out of view,
         // and laying it out again on every typed character is what costs CPU.
         if locked.count > 400 {

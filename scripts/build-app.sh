@@ -2,11 +2,16 @@
 # Builds Parakeet.app into build/. The app runs engine/engine.py from this
 # checkout's .venv, so the checkout must stay where it is.
 #   scripts/build-app.sh       parakeet-redux via Photon (GPU)
-#   scripts/build-app.sh ane   Parakeet v2 via FluidAudio (Neural Engine), as "Parakeet ANE.app"
+#   scripts/build-app.sh ane        Parakeet v2 via FluidAudio (Neural Engine), as "Parakeet ANE.app"
+#   scripts/build-app.sh nemotron   Nemotron streaming via FluidAudio (Neural Engine), as "Parakeet Nemotron.app"
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
 engine=${1:-redux}
-if [ "$engine" = ane ]; then name="Parakeet ANE"; id=plus.lost.parakeet.ane; else name=Parakeet; id=plus.lost.parakeet; fi
+case $engine in
+    ane) name="Parakeet ANE"; id=plus.lost.parakeet.ane ;;
+    nemotron) name="Parakeet Nemotron"; id=plus.lost.parakeet.nemotron ;;
+    *) name=Parakeet; id=plus.lost.parakeet ;;
+esac
 app="$root/build/$name.app"
 
 swift build -c release --package-path "$root/app"

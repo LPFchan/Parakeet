@@ -17,7 +17,7 @@ open build/Parakeet.app
 The first launch downloads the model (~180 MB) and asks for permission to
 record system audio. Captions appear in a floating box you can drag anywhere,
 typing in as they arrive and scrolling up line by line;
-the menu bar icon has Start/Stop, Show Captions, Copy Transcript and Quit.
+the menu bar icon has a Captions on/off switch, Copy Transcript and Quit.
 
 ## How it works
 
