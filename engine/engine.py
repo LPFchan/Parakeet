@@ -24,7 +24,7 @@ os.environ.setdefault("MOONDREAM_API_BASE_URL", "http://127.0.0.1:9")
 import moondream as md  # noqa: E402
 
 SR = 16_000
-TICK = 0.5          # seconds of new audio between re-transcriptions
+TICK = 0.2          # seconds of new audio between re-transcriptions
 PAUSE = 0.8         # silence after the last word that locks everything in
 SETTLE = 1.0        # a sentence must end this long before "now" to lock in
 MAX_BUFFER = 20.0   # force a cut in run-on speech
@@ -43,6 +43,8 @@ class Buffer:
     def reader(self, stream):
         while data := stream.read(SR // 10 * 4):
             samples = np.frombuffer(data[: len(data) // 4 * 4], np.float32)
+            # Loud mixes and resampling overshoot past full scale; Photon rejects that.
+            samples = np.clip(np.nan_to_num(samples), -1.0, 1.0)
             with self.lock:
                 self.chunks.append(samples)
                 self.last_audio = time.monotonic()
@@ -72,9 +74,9 @@ def main():
     since_tick = 0
     last_partial = ""
 
-    def cut(seconds):
+    def cut(seconds, margin=MARGIN):
         nonlocal audio
-        audio = audio[max(0, int((seconds - MARGIN) * SR)):]
+        audio = audio[max(0, int((seconds - margin) * SR)):]
 
     while True:
         chunks, last_audio = buf.take()
@@ -91,12 +93,16 @@ def main():
         since_tick = 0
 
         dur = len(audio) / SR
-        result = speech.transcribe(audio=audio, sample_rate=SR, timestamps="word")
-        segments = [s for s in result["segments"] if s["words"]]
+        segments = []
+        # The tap streams digital silence when nothing plays; don't spin the GPU on it.
+        if np.abs(audio).max(initial=0) > 1e-4:
+            result = speech.transcribe(audio=audio, sample_rate=SR, timestamps="word")
+            segments = [s for s in result["segments"] if s["words"]]
 
         if not segments:
-            # Nothing said; keep a short tail so a word starting now isn't clipped.
-            audio = audio[-int(0.5 * SR):]
+            # Nothing said yet. Keep enough tail that a sentence which is just
+            # starting survives until the model can recognise its first word.
+            audio = audio[-int(2.0 * SR):]
             if idle:
                 audio = audio[:0]
             if last_partial:
@@ -108,7 +114,8 @@ def main():
 
         if idle or dur - last_end >= PAUSE:
             emit(final=" ".join(s["text"] for s in segments))
-            audio = audio[:0]
+            # Keep what follows the last word: the next sentence may be starting.
+            cut(last_end, margin=0)
         elif len(segments) > 1 and dur - segments[-2]["end"] >= SETTLE:
             emit(final=" ".join(s["text"] for s in segments[:-1]))
             cut(segments[-1]["start"])

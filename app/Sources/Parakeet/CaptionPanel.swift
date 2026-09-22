@@ -1,36 +1,61 @@
 import AppKit
 import SwiftUI
 
+/// One continuous run of text per burst of speech. New characters type in
+/// a few at a time instead of popping in, so the eye can follow them.
 @Observable
 final class Captions {
     private(set) var transcript: [String] = []
-    private(set) var shown = ""
-    var partial = ""
+    private(set) var locked = ""
+    private(set) var partial = ""
+    private(set) var revealed = 0
     private var lastUpdate = Date()
+    @ObservationIgnored private var ticker: Timer?
+
+    var isEmpty: Bool { locked.isEmpty && partial.isEmpty }
+    private var target: Int { full.count }
+    private var full: String { locked.isEmpty || partial.isEmpty ? locked + partial : locked + " " + partial }
+
+    /// The typed-in part, split into locked (bright) and still-changing (dim).
+    var visible: (locked: String, partial: String) {
+        let shown = String(full.prefix(revealed))
+        let split = min(shown.count, locked.count)
+        return (String(shown.prefix(split)), String(shown.dropFirst(split)))
+    }
 
     func lock(_ text: String) {
         transcript.append(text)
-        shown = trimmed(shown.isEmpty ? text : shown + " " + text)
+        locked = locked.isEmpty ? text : locked + " " + text
+        // Anything scrolled far out of view can go.
+        if locked.count > 2000 { locked = String(locked.suffix(1500)) ; revealed = max(0, revealed - 500) }
         partial = ""
-        lastUpdate = .now
+        changed()
     }
 
     func update(_ text: String) {
         partial = text
-        shown = trimmed(shown)
-        lastUpdate = .now
+        changed()
     }
 
     /// Fade out once nobody has spoken for a while.
     func clearIfIdle(after seconds: TimeInterval) {
-        if partial.isEmpty, !shown.isEmpty, Date().timeIntervalSince(lastUpdate) > seconds { shown = "" }
+        if partial.isEmpty, !locked.isEmpty, Date().timeIntervalSince(lastUpdate) > seconds {
+            locked = ""
+            revealed = 0
+        }
     }
 
-    /// Keep roughly three lines on screen, dropping whole words from the front.
-    private func trimmed(_ text: String, budget: Int = 180) -> String {
-        var words = text.split(separator: " ")
-        while !words.isEmpty, words.joined(separator: " ").count + partial.count > budget { words.removeFirst() }
-        return words.joined(separator: " ")
+    private func changed() {
+        lastUpdate = .now
+        revealed = min(revealed, target)
+        guard ticker == nil else { return }
+        ticker = Timer.scheduledTimer(withTimeInterval: 1 / 60, repeats: true) { [weak self] timer in
+            guard let self else { return timer.invalidate() }
+            let remaining = target - revealed
+            if remaining <= 0 { timer.invalidate(); ticker = nil; return }
+            // Close the gap in ~150 ms whatever its size, but never jump a whole word at once.
+            revealed += min(max(1, remaining / 9), 3)
+        }
     }
 }
 
@@ -63,22 +88,32 @@ final class CaptionPanel: NSPanel {
 
 private struct CaptionView: View {
     let captions: Captions
+    private let font = Font.system(size: 22, weight: .semibold)
+    private let lineHeight: CGFloat = 29
+    private let lines: CGFloat = 3
 
     var body: some View {
         VStack {
             Spacer(minLength: 0)
-            if !captions.shown.isEmpty || !captions.partial.isEmpty {
-                (Text(captions.shown + (captions.shown.isEmpty ? "" : " ")).foregroundStyle(.white)
-                 + Text(captions.partial).foregroundStyle(.white.opacity(0.6)))
-                    .font(.system(size: 22, weight: .semibold))
-                    .lineLimit(3)
+            if !captions.isEmpty {
+                let visible = captions.visible
+                // Text grows upward from the bottom edge; the box clips it and
+                // fades out the top line, so wrapping reads as a scroll.
+                (Text(visible.locked).foregroundStyle(.white)
+                 + Text(visible.partial).foregroundStyle(.white.opacity(0.6)))
+                    .font(font)
+                    .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(height: lineHeight * lines, alignment: .bottom)
+                    .animation(.easeOut(duration: 0.25), value: visible.locked.count + visible.partial.count)
+                    .clipped()
+                    .mask(LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.3)], startPoint: .top, endPoint: .bottom))
                     .padding(.horizontal, 18)
                     .padding(.vertical, 12)
                     .background(.black.opacity(0.72), in: .rect(cornerRadius: 14))
                     .transition(.opacity)
             }
         }
-        .animation(.easeOut(duration: 0.2), value: captions.shown.isEmpty && captions.partial.isEmpty)
+        .animation(.easeOut(duration: 0.3), value: captions.isEmpty)
     }
 }

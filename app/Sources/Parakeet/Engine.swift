@@ -7,21 +7,17 @@ final class Engine {
     private let process = Process()
     private let stdin = Pipe()
     private let stdout = Pipe()
-    private let stderr = Pipe()
     private var pending = Data()
-    private var errorTail = ""
+    static let log = FileManager.default.homeDirectoryForCurrentUser.appending(path: "Library/Logs/Parakeet/engine.log")
 
     init(root: URL, onEvent: @escaping (Event) -> Void) throws {
         process.executableURL = root.appending(path: ".venv/bin/python")
         process.arguments = [root.appending(path: "engine/engine.py").path]
         process.standardInput = stdin
         process.standardOutput = stdout
-        process.standardError = stderr
-
-        stderr.fileHandleForReading.readabilityHandler = { [weak self] handle in
-            guard let self, let text = String(data: handle.availableData, encoding: .utf8) else { return }
-            errorTail = String((errorTail + text).suffix(2000))
-        }
+        try FileManager.default.createDirectory(at: Self.log.deletingLastPathComponent(), withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: Self.log.path, contents: nil)
+        process.standardError = try FileHandle(forWritingTo: Self.log)
         stdout.fileHandleForReading.readabilityHandler = { [weak self] handle in
             guard let self else { return }
             pending.append(handle.availableData)
@@ -36,8 +32,9 @@ final class Engine {
                 if let event { DispatchQueue.main.async { onEvent(event) } }
             }
         }
-        process.terminationHandler = { [weak self] _ in
-            let tail = self?.errorTail.split(separator: "\n").last.map(String.init) ?? ""
+        process.terminationHandler = { _ in
+            let log = (try? String(contentsOf: Self.log, encoding: .utf8)) ?? ""
+            let tail = log.split(separator: "\n").last.map(String.init) ?? ""
             DispatchQueue.main.async { onEvent(.exited(tail)) }
         }
         try process.run()

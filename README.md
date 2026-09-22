@@ -15,14 +15,15 @@ open build/Parakeet.app
 ```
 
 The first launch downloads the model (~180 MB) and asks for permission to
-record system audio. Captions appear in a floating box you can drag anywhere;
+record system audio. Captions appear in a floating box you can drag anywhere,
+typing in as they arrive and scrolling up line by line;
 the menu bar icon has Start/Stop, Show Captions, Copy Transcript and Quit.
 
 ## How it works
 
 - `app/` — Swift menu bar app. Captures all system audio with a Core Audio
   process tap, converts it to 16 kHz mono, and pipes it to the engine.
-- `engine/engine.py` — re-transcribes the pending audio every 0.5 s and
+- `engine/engine.py` — re-transcribes the pending audio every 0.2 s and
   prints JSON lines (`partial` / `final`). Text is locked in when the model's
   word timestamps show a pause, when a new sentence has started, or after 20 s
   of nonstop speech.
@@ -30,6 +31,8 @@ the menu bar icon has Start/Stop, Show Captions, Copy Transcript and Quit.
 Photon's own live mode waits 4 s before its first preview, so the engine runs
 its own loop instead. Photon also posts usage counts (no audio or text) to
 api.moondream.ai; the engine points that at a dead local address.
+
+Engine errors go to `~/Library/Logs/Parakeet/engine.log`.
 
 The app runs the engine from this checkout's `.venv`, so rebuild the app if
 you move the folder.
