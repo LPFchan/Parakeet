@@ -1,0 +1,4 @@
+.venv/
+build/
+app/.build/
+.DS_Store
