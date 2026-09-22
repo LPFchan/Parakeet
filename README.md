@@ -32,6 +32,15 @@ Photon's own live mode waits 4 s before its first preview, so the engine runs
 its own loop instead. Photon also posts usage counts (no audio or text) to
 api.moondream.ai; the engine points that at a dead local address.
 
+### Experimental: Neural Engine build
+
+`scripts/build-app.sh ane` builds `build/Parakeet ANE.app`, which skips Python
+and runs the same loop in-process (`app/Sources/Parakeet/AneEngine.swift`)
+on [FluidAudio](https://github.com/FluidInference/FluidAudio)'s CoreML
+Parakeet TDT v2 (English-only, the original NVIDIA weights, not redux). The
+encoder runs on the Neural Engine; the model (~450 MB) downloads on first
+launch.
+
 Engine errors go to `~/Library/Logs/Parakeet/engine.log`.
 
 The app runs the engine from this checkout's `.venv`, so rebuild the app if

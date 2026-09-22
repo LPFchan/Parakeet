@@ -1,8 +1,15 @@
 import Foundation
 
+enum EngineEvent { case ready, partial(String), final(String), exited(String) }
+
+protocol Transcriber: AnyObject {
+    func send(_ pcm: Data)
+    func stop()
+}
+
 /// Runs engine/engine.py in the repo's .venv and talks JSON lines with it.
-final class Engine {
-    enum Event { case ready, partial(String), final(String), exited(String) }
+final class Engine: Transcriber {
+    typealias Event = EngineEvent
 
     private let process = Process()
     private let stdin = Pipe()

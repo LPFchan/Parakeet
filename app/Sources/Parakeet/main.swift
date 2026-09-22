@@ -5,7 +5,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private lazy var panel = CaptionPanel(captions: captions)
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let tap = SystemAudioTap()
-    private var engine: Engine?
+    private var engine: Transcriber?
     private var status = "Loading model…"
     private var ready = false
     private var listening = false
@@ -43,15 +43,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func startEngine() {
-        let root = URL(fileURLWithPath: Bundle.main.object(forInfoDictionaryKey: "ParakeetRoot") as? String ?? "")
+        let info = Bundle.main.infoDictionary ?? [:]
+        let root = URL(fileURLWithPath: info["ParakeetRoot"] as? String ?? "")
+        let onEvent: (EngineEvent) -> Void = { [weak self] event in self?.handle(event) }
         do {
-            engine = try Engine(root: root) { [weak self] event in self?.handle(event) }
+            engine = info["ParakeetEngine"] as? String == "ane"
+                ? AneEngine(onEvent: onEvent)
+                : try Engine(root: root, onEvent: onEvent)
         } catch {
             status = "Engine failed: \(error.localizedDescription)"
         }
     }
 
-    private func handle(_ event: Engine.Event) {
+    private func handle(_ event: EngineEvent) {
         switch event {
         case .ready:
             ready = true

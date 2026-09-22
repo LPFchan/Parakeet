@@ -26,8 +26,15 @@ final class Captions {
     func lock(_ text: String) {
         transcript.append(text)
         locked = locked.isEmpty ? text : locked + " " + text
-        // Anything scrolled far out of view can go.
-        if locked.count > 2000 { locked = String(locked.suffix(1500)) ; revealed = max(0, revealed - 500) }
+        // Only ~3 lines are on screen; text above them has scrolled out of view,
+        // and laying it out again on every typed character is what costs CPU.
+        if locked.count > 400 {
+            let drop = locked.count - 300
+            let cut = locked.index(locked.startIndex, offsetBy: drop)
+            let wordStart = locked[cut...].firstIndex(of: " ").map { locked.index(after: $0) } ?? cut
+            revealed = max(0, revealed - locked.distance(from: locked.startIndex, to: wordStart))
+            locked = String(locked[wordStart...])
+        }
         partial = ""
         changed()
     }
@@ -49,12 +56,12 @@ final class Captions {
         lastUpdate = .now
         revealed = min(revealed, target)
         guard ticker == nil else { return }
-        ticker = Timer.scheduledTimer(withTimeInterval: 1 / 60, repeats: true) { [weak self] timer in
+        ticker = Timer.scheduledTimer(withTimeInterval: 1 / 30, repeats: true) { [weak self] timer in
             guard let self else { return timer.invalidate() }
             let remaining = target - revealed
             if remaining <= 0 { timer.invalidate(); ticker = nil; return }
             // Close the gap in ~150 ms whatever its size, but never jump a whole word at once.
-            revealed += min(max(1, remaining / 9), 3)
+            revealed += min(max(1, remaining / 5), 6)
         }
     }
 }
@@ -91,6 +98,7 @@ private struct CaptionView: View {
     private let font = Font.system(size: 22, weight: .semibold)
     private let lineHeight: CGFloat = 29
     private let lines: CGFloat = 3
+    @State private var lift: CGFloat = 0
 
     var body: some View {
         VStack {
@@ -104,8 +112,16 @@ private struct CaptionView: View {
                     .font(font)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    // When a new line wraps in, start it one line lower and glide
+                    // up. Only the offset animates, so the text isn't re-laid out
+                    // every frame (animating the text itself cost ~90% CPU).
+                    .onGeometryChange(for: CGFloat.self, of: \.size.height) { old, new in
+                        guard new > old else { return }
+                        lift += new - old
+                        withAnimation(.easeOut(duration: 0.25)) { lift = 0 }
+                    }
+                    .offset(y: lift)
                     .frame(height: lineHeight * lines, alignment: .bottom)
-                    .animation(.easeOut(duration: 0.25), value: visible.locked.count + visible.partial.count)
                     .clipped()
                     .mask(LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.3)], startPoint: .top, endPoint: .bottom))
                     .padding(.horizontal, 18)
