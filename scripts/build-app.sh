@@ -4,12 +4,14 @@
 #   scripts/build-app.sh       parakeet-redux via Photon (GPU)
 #   scripts/build-app.sh ane        Parakeet v2 via FluidAudio (Neural Engine), as "Parakeet ANE.app"
 #   scripts/build-app.sh nemotron   Nemotron streaming via FluidAudio (Neural Engine), as "Parakeet Nemotron.app"
+#   scripts/build-app.sh multilingual   Nemotron 3.5 streaming, 40 languages auto-detected, as "Parakeet Multilingual.app"
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
 engine=${1:-redux}
 case $engine in
     ane) name="Parakeet ANE"; id=plus.lost.parakeet.ane ;;
     nemotron) name="Parakeet Nemotron"; id=plus.lost.parakeet.nemotron ;;
+    multilingual) name="Parakeet Multilingual"; id=plus.lost.parakeet.multilingual ;;
     *) name=Parakeet; id=plus.lost.parakeet ;;
 esac
 app="$root/build/$name.app"

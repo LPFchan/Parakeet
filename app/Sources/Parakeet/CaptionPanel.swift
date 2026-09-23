@@ -25,9 +25,11 @@ final class Captions {
 
     func lock(_ text: String) {
         // Streaming models can deliver a sentence's full stop after the pause.
-        let attaches = text.first.map { ".,?!".contains($0) } ?? false
+        let attaches = text.first.map { ".,?!。、？！".contains($0) } ?? false
         if attaches, !transcript.isEmpty { transcript[transcript.count - 1] += text } else { transcript.append(text) }
-        locked = locked.isEmpty ? text : locked + (attaches ? "" : " ") + text
+        // Japanese and Chinese don't put spaces between sentences (Korean does).
+        let unspaced = locked.last?.unicodeScalars.first.map { (0x3000...0x9FFF).contains($0.value) } ?? false
+        locked = locked.isEmpty ? text : locked + (attaches || unspaced ? "" : " ") + text
         // Only ~3 lines are on screen; text above them has scrolled out of view,
         // and laying it out again on every typed character is what costs CPU.
         if locked.count > 400 {

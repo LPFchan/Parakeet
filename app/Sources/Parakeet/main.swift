@@ -49,6 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             switch info["ParakeetEngine"] as? String {
             case "ane": engine = AneEngine(onEvent: onEvent)
             case "nemotron": engine = NemotronEngine(onEvent: onEvent)
+            case "multilingual": engine = NemotronEngine(language: "auto", onEvent: onEvent)
             default: engine = try Engine(root: root, onEvent: onEvent)
             }
         } catch {
@@ -111,7 +112,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 }
 
-// `Parakeet --bench file.wav [nemotron]` plays a 16 kHz float32 WAV into an engine
+// `Parakeet --bench file.wav [nemotron|<language>]` plays a 16 kHz float32 WAV into an engine
 // in real time and reports the CPU time it took.
 if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "--bench" {
     let data = try! Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[2]))
@@ -145,7 +146,11 @@ if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "--bench" {
         case .exited(let reason): print("exited:", reason); exit(1)
         }
     }
-    engine = CommandLine.arguments.last == "nemotron" ? NemotronEngine(onEvent: onEvent) : AneEngine(onEvent: onEvent)
+    switch CommandLine.arguments.dropFirst(3).first {
+    case nil: engine = AneEngine(onEvent: onEvent)
+    case "nemotron": engine = NemotronEngine(onEvent: onEvent)
+    case let language?: engine = NemotronEngine(language: language, onEvent: onEvent)
+    }
     RunLoop.main.run()
 }
 

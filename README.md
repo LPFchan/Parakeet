@@ -41,6 +41,21 @@ Parakeet TDT v2 (English-only, the original NVIDIA weights, not redux). The
 encoder runs on the Neural Engine; the model (~450 MB) downloads on first
 launch.
 
+### Experimental: streaming builds
+
+These use models built for live audio: each 0.56 s of sound is processed
+once and words are never rewritten, so they use far less CPU (~5–9% of one
+core vs ~35%). Text updates every 0.56 s, and numbers come out as words.
+
+- `scripts/build-app.sh nemotron` → `build/Parakeet Nemotron.app`: NVIDIA
+  Nemotron Speech Streaming 0.6B, English.
+- `scripts/build-app.sh multilingual` → `build/Parakeet Multilingual.app`:
+  NVIDIA Nemotron 3.5 ASR, which detects the language on its own (Korean,
+  Japanese, English and ~30 more). The model downloads on first launch.
+
+`Parakeet --bench clip.wav [nemotron|auto|ko-KR|…]` plays a 16 kHz float32
+WAV into an engine in real time and prints what it heard and its CPU use.
+
 Engine errors go to `~/Library/Logs/Parakeet/engine.log`.
 
 The app runs the engine from this checkout's `.venv`, so rebuild the app if
