@@ -26,7 +26,7 @@ The same controls work from a terminal, without touching the menu:
 alias parakeet="$PWD/build/Parakeet.app/Contents/MacOS/Parakeet"
 parakeet status
 parakeet captions on|off
-parakeet model redux|ane|nemotron|multilingual
+parakeet model redux|ane|nemotron|multilingual|sensevoice
 ```
 
 ## Models
@@ -37,11 +37,14 @@ parakeet model redux|ane|nemotron|multilingual
 | `ane` | Neural Engine | ~35% | Parakeet TDT v2 (original NVIDIA weights); English |
 | `nemotron` | Neural Engine | ~5% | Nemotron Speech Streaming; English |
 | `multilingual` | Neural Engine | ~9% | Nemotron 3.5 ASR; detects the language (Korean, Japanese, English and ~30 more) |
+| `sensevoice` | Neural Engine | ~5% | SenseVoice Small; Korean, Japanese, Chinese, Cantonese, English, without locking onto one |
 
 The two Parakeet models re-read the last few seconds every 0.2 s, which keeps
 their text clean but costs CPU. The Nemotron models are built for live audio:
 each 0.56 s of sound is processed once and words are never rewritten, so they
 are far cheaper, but text updates every 0.56 s and numbers come out as words.
+SenseVoice has no word timings, so a voice detector (Silero VAD) decides
+when a sentence has ended; until then it re-reads the sentence every 0.26 s.
 The Neural Engine models run in-process via
 [FluidAudio](https://github.com/FluidInference/FluidAudio) and download on
 first use. The default is `multilingual`; the choice is remembered.
@@ -59,7 +62,7 @@ Photon's own live mode waits 4 s before its first preview, so the engine runs
 its own loop instead. Photon also posts usage counts (no audio or text) to
 api.moondream.ai; the engine points that at a dead local address.
 
-`Parakeet --bench clip.wav [nemotron|auto|ko-KR|…]` plays a 16 kHz float32
+`Parakeet --bench clip.wav [nemotron|sensevoice|auto|ko-KR|…]` plays a 16 kHz float32
 WAV into an engine in real time and prints what it heard and its CPU use
 (no model argument = `ane`).
 

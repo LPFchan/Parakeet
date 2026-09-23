@@ -8,7 +8,7 @@ enum Control {
 }
 
 enum Model: String, CaseIterable {
-    case redux, ane, nemotron, multilingual
+    case redux, ane, nemotron, multilingual, sensevoice
 
     var title: String {
         switch self {
@@ -16,6 +16,7 @@ enum Model: String, CaseIterable {
         case .ane: "Parakeet v2 (Neural Engine)"
         case .nemotron: "Nemotron (English, streaming)"
         case .multilingual: "Nemotron 3.5 (multilingual, streaming)"
+        case .sensevoice: "SenseVoice (Korean, Japanese, Chinese, English)"
         }
     }
 }
@@ -113,6 +114,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             case .ane: engine = AneEngine(onEvent: onEvent)
             case .nemotron: engine = NemotronEngine(onEvent: onEvent)
             case .multilingual: engine = NemotronEngine(language: "auto", onEvent: onEvent)
+            case .sensevoice: engine = SenseVoiceEngine(onEvent: onEvent)
             }
         } catch {
             status = "Engine failed: \(error.localizedDescription)"
@@ -188,7 +190,7 @@ if let first = args.first, ["status", "captions", "model"].contains(first) {
     RunLoop.main.run()
 }
 
-// `Parakeet --bench file.wav [nemotron|<language>]` plays a 16 kHz float32 WAV into an engine
+// `Parakeet --bench file.wav [nemotron|sensevoice|<language>]` plays a 16 kHz float32 WAV into an engine
 // in real time and reports the CPU time it took.
 if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "--bench" {
     let data = try! Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[2]))
@@ -225,6 +227,7 @@ if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "--bench" {
     switch CommandLine.arguments.dropFirst(3).first {
     case nil: engine = AneEngine(onEvent: onEvent)
     case "nemotron": engine = NemotronEngine(onEvent: onEvent)
+    case "sensevoice": engine = SenseVoiceEngine(onEvent: onEvent)
     case let language?: engine = NemotronEngine(language: language, onEvent: onEvent)
     }
     RunLoop.main.run()
