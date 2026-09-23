@@ -98,7 +98,7 @@ final class CaptionPanel: NSPanel {
     override var canBecomeKey: Bool { false }
 }
 
-private struct CaptionView: View {
+struct CaptionView: View {
     let captions: Captions
     private let font = Font.system(size: 22, weight: .semibold)
     private let lineHeight: CGFloat = 29

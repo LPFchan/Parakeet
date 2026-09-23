@@ -1,7 +1,7 @@
 import FluidAudio
 import Foundation
 
-enum EngineEvent { case downloading(Double), ready, partial(String), final(String), exited(String) }
+enum EngineEvent { case downloading(Double), preparing, ready, partial(String), final(String), exited(String) }
 
 /// NVIDIA Nemotron 3.5 ASR (cache-aware streaming, ~40 languages detected
 /// automatically) running on the Neural Engine via FluidAudio. Each 560 ms
@@ -26,11 +26,12 @@ final class NemotronEngine {
                         emit(.downloading(Double(percent) / 100))
                         try await Task.sleep(for: .milliseconds(100))
                     }
-                    try await Task.sleep(for: .seconds(10))  // compiling for the Neural Engine takes ~1 min for real
                 }
                 let dir = try await StreamingNemotronMultilingualAsrManager.downloadVariant(
                     languageCode: "auto", chunkMs: 560,
                     progressHandler: { emit(.downloading($0.fractionCompleted)) })
+                emit(.preparing)
+                if rehearseFirstLaunch { try await Task.sleep(for: .seconds(10)) }  // really ~1 min, first time only
                 let asr = StreamingNemotronMultilingualAsrManager()
                 try await asr.loadModels(from: dir)
                 emit(.ready)

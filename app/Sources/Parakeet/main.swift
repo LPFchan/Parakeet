@@ -16,6 +16,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let tap = SystemAudioTap()
     private let updater = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
     private var engine: NemotronEngine?
+    private var onboarding: Onboarding?   // set while the first-launch window is open
+    private var onboardingWindow: OnboardingWindow?
     private var status = "Loading speech model…"
     private var ready = false
     private var listening = false
@@ -28,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updateIcon()
         // `open Parakeet.app --args --rehearse-first-launch` replays what a new user sees.
         let rehearse = CommandLine.arguments.contains("--rehearse-first-launch")
+        if rehearse || !UserDefaults.standard.bool(forKey: "onboarded") { showOnboarding() }
         engine = NemotronEngine(rehearseFirstLaunch: rehearse) { [weak self] event in self?.handle(event) }
         Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [captions] _ in
             captions.clearIfIdle(after: 6)
@@ -40,6 +43,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         tap.stop()
         engine?.stop()
+    }
+
+    private func showOnboarding() {
+        let onboarding = Onboarding()
+        let window = OnboardingWindow(onboarding)
+        onboarding.onFinish = { [weak self] in self?.finishOnboarding() }
+        self.onboarding = onboarding
+        onboardingWindow = window
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate()
+    }
+
+    private func finishOnboarding() {
+        guard let onboarding else { return }
+        self.onboarding = nil
+        UserDefaults.standard.set(true, forKey: "onboarded")
+        if onboarding.openAtLogin, SMAppService.mainApp.status != .enabled { try? SMAppService.mainApp.register() }
+        onboardingWindow?.close()
+        onboardingWindow = nil
+        if ready { startListening() }
     }
 
     private func run(command: String) {
@@ -73,14 +96,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func handle(_ event: EngineEvent) {
         switch event {
         case .downloading(let fraction):
-            // First launch only: the box is the one thing on screen that shows progress.
             status = "Downloading speech model… \(Int(fraction * 100))%"
-            captions.update(status)
-            panel.orderFrontRegardless()
+            onboarding?.model = .downloading(fraction)
+        case .preparing:
+            status = "Preparing speech model…"
+            onboarding?.model = .preparing
         case .ready:
             ready = true
-            captions.update("")
-            startListening()
+            status = "Ready"
+            onboarding?.model = .ready
+            // Captions start once the welcome window is done with.
+            if onboarding == nil { startListening() }
         case .partial(let text):
             captions.update(text)
         case .final(let text):
@@ -164,7 +190,7 @@ if args.count == 2, args[0] == "--bench" {
     engine = NemotronEngine { event in
         let t = String(format: "%5.2f", Date().timeIntervalSince(started))
         switch event {
-        case .downloading: break
+        case .downloading, .preparing: break
         case .ready:
             print(t, "ready")
             DispatchQueue.global().async {

@@ -22,8 +22,8 @@ leaves it.
   ```
 
 The app isn't notarized by Apple, so the first launch needs System Settings →
-Privacy & Security → **Open Anyway**. The first launch also downloads the
-speech model (~640 MB) from Hugging Face.
+Privacy & Security → **Open Anyway**. A welcome window then asks for the
+audio permission and downloads the speech model (~640 MB) from Hugging Face.
 
 ## How it works
 
@@ -48,8 +48,8 @@ build/Parakeet.app/Contents/MacOS/Parakeet --bench clip.wav   # 16 kHz float32 W
 
 `--bench` plays a clip into the engine in real time and prints the captions
 and the CPU used. `open build/Parakeet.app --args --rehearse-first-launch`
-replays what a new user sees (a fake model download, then the first-time
-preparation pause) without touching the downloaded model. `swift scripts/make-icon.swift` redraws the app icon.
+opens the welcome window as a new user sees it, with a fake model download
+and preparation pause, without touching the downloaded model. `swift scripts/make-icon.swift` redraws the app icon.
 
 ### Releasing
 
