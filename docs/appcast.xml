@@ -5,6 +5,15 @@
     <link>https://lpfchan.github.io/parakeet/appcast.xml</link>
     <language>en</language>
     <item>
+      <title>Version 1.1.1</title>
+      <pubDate>Wed, 23 Sep 2026 09:09:42 GMT</pubDate>
+      <sparkle:version>19</sparkle:version>
+      <sparkle:shortVersionString>1.1.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <sparkle:fullReleaseNotesLink>https://github.com/LPFchan/parakeet/releases/tag/v1.1.1</sparkle:fullReleaseNotesLink>
+      <enclosure url="https://github.com/LPFchan/parakeet/releases/download/v1.1.1/Parakeet.dmg" type="application/octet-stream" sparkle:edSignature="O5Hj8F3Vz1vResi/7S+/SIikG6KqPoo4ZytI3MOvHfSvLyRRJodR99wyC6Sn+rXYWDWpDpqaAWgv+cB7F0VvBA==" length="11213610"/>
+    </item>
+    <item>
       <title>Version 1.1.0</title>
       <pubDate>Wed, 23 Sep 2026 08:49:40 GMT</pubDate>
       <sparkle:version>16</sparkle:version>
