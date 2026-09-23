@@ -1,12 +1,34 @@
 import AppKit
 
+/// `Parakeet <command>` talks to the running app over distributed notifications.
+enum Control {
+    static let command = Notification.Name("plus.lost.parakeet.command")
+    static let reply = Notification.Name("plus.lost.parakeet.status")
+    static let usage = "usage: Parakeet status | captions on|off | model \(Model.allCases.map(\.rawValue).joined(separator: "|"))"
+}
+
+enum Model: String, CaseIterable {
+    case redux, ane, nemotron, multilingual
+
+    var title: String {
+        switch self {
+        case .redux: "Parakeet redux (GPU)"
+        case .ane: "Parakeet v2 (Neural Engine)"
+        case .nemotron: "Nemotron (English, streaming)"
+        case .multilingual: "Nemotron 3.5 (multilingual, streaming)"
+        }
+    }
+}
+
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let captions = Captions()
     private lazy var panel = CaptionPanel(captions: captions)
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let tap = SystemAudioTap()
     private var engine: Transcriber?
-    private var status = "Loading model…"
+    private var generation = 0   // ignores late events from an engine that was switched away from
+    private var model = Model(rawValue: UserDefaults.standard.string(forKey: "model") ?? "") ?? .multilingual
+    private var status = ""
     private var ready = false
     private var listening = false
 
@@ -20,6 +42,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [captions] _ in
             captions.clearIfIdle(after: 6)
         }
+        DistributedNotificationCenter.default().addObserver(forName: Control.command, object: nil, queue: .main) { [weak self] note in
+            self?.run(command: (note.object as? String)?.split(separator: " ").map(String.init) ?? [])
+        }
+    }
+
+    private func run(command: [String]) {
+        switch (command.first, command.dropFirst().first) {
+        case ("captions", "on"): if ready, !listening { startListening() }
+        case ("captions", "off"): if listening { stopListening() }
+        case ("model", let name?): if let picked = Model(rawValue: name) { switchModel(to: picked) }
+        default: break
+        }
+        DistributedNotificationCenter.default().postNotificationName(Control.reply, object: status, userInfo: nil, deliverImmediately: true)
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -35,22 +70,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let toggle = menu.addItem(withTitle: "Captions", action: #selector(toggleListening), keyEquivalent: "l")
         toggle.state = listening ? .on : .off
         toggle.isEnabled = ready
+        let models = NSMenu()
+        for m in Model.allCases {
+            let item = models.addItem(withTitle: m.title, action: #selector(selectModel), keyEquivalent: "")
+            item.representedObject = m.rawValue
+            item.state = m == model ? .on : .off
+        }
+        menu.addItem(withTitle: "Model", action: nil, keyEquivalent: "").submenu = models
         let copy = menu.addItem(withTitle: "Copy Transcript", action: #selector(copyTranscript), keyEquivalent: "")
         copy.isEnabled = !captions.transcript.isEmpty
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit Parakeet", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
     }
 
+    @objc private func selectModel(_ sender: NSMenuItem) {
+        if let picked = (sender.representedObject as? String).flatMap(Model.init) { switchModel(to: picked) }
+    }
+
+    private func switchModel(to picked: Model) {
+        guard picked != model else { return }
+        model = picked
+        UserDefaults.standard.set(model.rawValue, forKey: "model")
+        stopListening()
+        engine?.stop()
+        engine = nil
+        ready = false
+        startEngine()
+    }
+
     private func startEngine() {
-        let info = Bundle.main.infoDictionary ?? [:]
-        let root = URL(fileURLWithPath: info["ParakeetRoot"] as? String ?? "")
-        let onEvent: (EngineEvent) -> Void = { [weak self] event in self?.handle(event) }
+        let root = URL(fileURLWithPath: Bundle.main.infoDictionary?["ParakeetRoot"] as? String ?? "")
+        generation += 1
+        let current = generation
+        let onEvent: (EngineEvent) -> Void = { [weak self] event in
+            if self?.generation == current { self?.handle(event) }
+        }
+        status = "Loading \(model.title)…"
+        updateIcon()
         do {
-            switch info["ParakeetEngine"] as? String {
-            case "ane": engine = AneEngine(onEvent: onEvent)
-            case "nemotron": engine = NemotronEngine(onEvent: onEvent)
-            case "multilingual": engine = NemotronEngine(language: "auto", onEvent: onEvent)
-            default: engine = try Engine(root: root, onEvent: onEvent)
+            switch model {
+            case .redux: engine = try Engine(root: root, onEvent: onEvent)
+            case .ane: engine = AneEngine(onEvent: onEvent)
+            case .nemotron: engine = NemotronEngine(onEvent: onEvent)
+            case .multilingual: engine = NemotronEngine(language: "auto", onEvent: onEvent)
             }
         } catch {
             status = "Engine failed: \(error.localizedDescription)"
@@ -61,7 +123,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         switch event {
         case .ready:
             ready = true
-            status = "Ready"
+            status = model.title
             startListening()
         case .partial(let text):
             captions.update(text)
@@ -84,7 +146,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         do {
             try tap.start { [weak self] pcm in self?.engine?.send(pcm) }
             listening = true
-            status = "Listening to system audio"
+            status = "Listening · \(model.title)"
             panel.orderFrontRegardless()
         } catch {
             tap.stop()
@@ -97,7 +159,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         tap.stop()
         listening = false
         panel.orderOut(nil)
-        if ready { status = "Off" }
+        if ready { status = "Off · \(model.title)" }
         updateIcon()
     }
 
@@ -110,6 +172,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let name = listening ? "captions.bubble.fill" : "captions.bubble"
         statusItem.button?.image = NSImage(systemSymbolName: name, accessibilityDescription: "Parakeet")
     }
+}
+
+let args = Array(CommandLine.arguments.dropFirst())
+if let first = args.first, ["status", "captions", "model"].contains(first) {
+    let valid = first == "status" || (first == "captions" && ["on", "off"].contains(args.dropFirst().first ?? ""))
+        || (first == "model" && Model(rawValue: args.dropFirst().first ?? "") != nil)
+    guard valid else { print(Control.usage); exit(2) }
+    DistributedNotificationCenter.default().addObserver(forName: Control.reply, object: nil, queue: .main) { note in
+        print(note.object as? String ?? "")
+        exit(0)
+    }
+    DistributedNotificationCenter.default().postNotificationName(Control.command, object: args.joined(separator: " "), userInfo: nil, deliverImmediately: true)
+    DispatchQueue.main.asyncAfter(deadline: .now() + 2) { print("Parakeet isn't running"); exit(1) }
+    RunLoop.main.run()
 }
 
 // `Parakeet --bench file.wav [nemotron|<language>]` plays a 16 kHz float32 WAV into an engine

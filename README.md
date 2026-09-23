@@ -1,8 +1,8 @@
 # Parakeet
 
 Live captions for everything your Mac plays, running fully on-device with
-[moondream/parakeet-redux](https://huggingface.co/moondream/parakeet-redux).
-English only for now (the model covers 25 European languages, no CJK).
+[moondream/parakeet-redux](https://huggingface.co/moondream/parakeet-redux)
+or one of the other speech models listed below.
 macOS 15+, Apple silicon.
 
 ## Setup
@@ -17,7 +17,34 @@ open build/Parakeet.app
 The first launch downloads the model (~180 MB) and asks for permission to
 record system audio. Captions appear in a floating box you can drag anywhere,
 typing in as they arrive and scrolling up line by line;
-the menu bar icon has a Captions on/off switch, Copy Transcript and Quit.
+the menu bar icon has a Captions on/off switch, a Model picker, Copy
+Transcript and Quit.
+
+The same controls work from a terminal, without touching the menu:
+
+```sh
+alias parakeet="$PWD/build/Parakeet.app/Contents/MacOS/Parakeet"
+parakeet status
+parakeet captions on|off
+parakeet model redux|ane|nemotron|multilingual
+```
+
+## Models
+
+| Model | Runs on | CPU | Notes |
+| --- | --- | --- | --- |
+| `redux` | GPU (Python) | ~35% | moondream/parakeet-redux; English |
+| `ane` | Neural Engine | ~35% | Parakeet TDT v2 (original NVIDIA weights); English |
+| `nemotron` | Neural Engine | ~5% | Nemotron Speech Streaming; English |
+| `multilingual` | Neural Engine | ~9% | Nemotron 3.5 ASR; detects the language (Korean, Japanese, English and ~30 more) |
+
+The two Parakeet models re-read the last few seconds every 0.2 s, which keeps
+their text clean but costs CPU. The Nemotron models are built for live audio:
+each 0.56 s of sound is processed once and words are never rewritten, so they
+are far cheaper, but text updates every 0.56 s and numbers come out as words.
+The Neural Engine models run in-process via
+[FluidAudio](https://github.com/FluidInference/FluidAudio) and download on
+first use. The default is `multilingual`; the choice is remembered.
 
 ## How it works
 
@@ -32,31 +59,11 @@ Photon's own live mode waits 4 s before its first preview, so the engine runs
 its own loop instead. Photon also posts usage counts (no audio or text) to
 api.moondream.ai; the engine points that at a dead local address.
 
-### Experimental: Neural Engine build
-
-`scripts/build-app.sh ane` builds `build/Parakeet ANE.app`, which skips Python
-and runs the same loop in-process (`app/Sources/Parakeet/AneEngine.swift`)
-on [FluidAudio](https://github.com/FluidInference/FluidAudio)'s CoreML
-Parakeet TDT v2 (English-only, the original NVIDIA weights, not redux). The
-encoder runs on the Neural Engine; the model (~450 MB) downloads on first
-launch.
-
-### Experimental: streaming builds
-
-These use models built for live audio: each 0.56 s of sound is processed
-once and words are never rewritten, so they use far less CPU (~5–9% of one
-core vs ~35%). Text updates every 0.56 s, and numbers come out as words.
-
-- `scripts/build-app.sh nemotron` → `build/Parakeet Nemotron.app`: NVIDIA
-  Nemotron Speech Streaming 0.6B, English.
-- `scripts/build-app.sh multilingual` → `build/Parakeet Multilingual.app`:
-  NVIDIA Nemotron 3.5 ASR, which detects the language on its own (Korean,
-  Japanese, English and ~30 more). The model downloads on first launch.
-
 `Parakeet --bench clip.wav [nemotron|auto|ko-KR|…]` plays a 16 kHz float32
-WAV into an engine in real time and prints what it heard and its CPU use.
+WAV into an engine in real time and prints what it heard and its CPU use
+(no model argument = `ane`).
 
 Engine errors go to `~/Library/Logs/Parakeet/engine.log`.
 
-The app runs the engine from this checkout's `.venv`, so rebuild the app if
+The `redux` model runs from this checkout's `.venv`, so rebuild the app if
 you move the folder.

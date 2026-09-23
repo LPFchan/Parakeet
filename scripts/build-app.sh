@@ -1,20 +1,10 @@
 #!/bin/sh
-# Builds Parakeet.app into build/. The app runs engine/engine.py from this
-# checkout's .venv, so the checkout must stay where it is.
-#   scripts/build-app.sh       parakeet-redux via Photon (GPU)
-#   scripts/build-app.sh ane        Parakeet v2 via FluidAudio (Neural Engine), as "Parakeet ANE.app"
-#   scripts/build-app.sh nemotron   Nemotron streaming via FluidAudio (Neural Engine), as "Parakeet Nemotron.app"
-#   scripts/build-app.sh multilingual   Nemotron 3.5 streaming, 40 languages auto-detected, as "Parakeet Multilingual.app"
+# Builds build/Parakeet.app. The model is picked from the app's menu. The
+# redux model runs engine/engine.py from this checkout's .venv, so the
+# checkout must stay where it is.
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
-engine=${1:-redux}
-case $engine in
-    ane) name="Parakeet ANE"; id=plus.lost.parakeet.ane ;;
-    nemotron) name="Parakeet Nemotron"; id=plus.lost.parakeet.nemotron ;;
-    multilingual) name="Parakeet Multilingual"; id=plus.lost.parakeet.multilingual ;;
-    *) name=Parakeet; id=plus.lost.parakeet ;;
-esac
-app="$root/build/$name.app"
+app="$root/build/Parakeet.app"
 
 swift build -c release --package-path "$root/app"
 rm -rf "$app"
@@ -25,8 +15,8 @@ cat > "$app/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleIdentifier</key><string>$id</string>
-  <key>CFBundleName</key><string>$name</string>
+  <key>CFBundleIdentifier</key><string>plus.lost.parakeet</string>
+  <key>CFBundleName</key><string>Parakeet</string>
   <key>CFBundleExecutable</key><string>Parakeet</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>0.1</string>
@@ -34,7 +24,6 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>LSUIElement</key><true/>
   <key>NSAudioCaptureUsageDescription</key><string>Parakeet listens to system audio to show live captions. Audio never leaves this Mac.</string>
   <key>ParakeetRoot</key><string>$root</string>
-  <key>ParakeetEngine</key><string>$engine</string>
 </dict>
 </plist>
 PLIST
