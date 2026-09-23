@@ -15,10 +15,19 @@ final class NemotronEngine {
     private var incoming: [Float] = []
     private var task: Task<Void, Never>?
 
-    init(onEvent: @escaping (EngineEvent) -> Void) {
+    /// `rehearseFirstLaunch` plays a fake model download and the first-time
+    /// preparation pause before loading the real (cached) model.
+    init(rehearseFirstLaunch: Bool = false, onEvent: @escaping (EngineEvent) -> Void) {
         let emit = { (event: EngineEvent) in DispatchQueue.main.async { onEvent(event) } }
         task = Task.detached(priority: .userInitiated) { [weak self] in
             do {
+                if rehearseFirstLaunch {
+                    for percent in 0...100 {
+                        emit(.downloading(Double(percent) / 100))
+                        try await Task.sleep(for: .milliseconds(100))
+                    }
+                    try await Task.sleep(for: .seconds(10))  // compiling for the Neural Engine takes ~1 min for real
+                }
                 let dir = try await StreamingNemotronMultilingualAsrManager.downloadVariant(
                     languageCode: "auto", chunkMs: 560,
                     progressHandler: { emit(.downloading($0.fractionCompleted)) })

@@ -26,7 +26,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.delegate = self
         statusItem.menu = menu
         updateIcon()
-        engine = NemotronEngine { [weak self] event in self?.handle(event) }
+        // `open Parakeet.app --args --rehearse-first-launch` replays what a new user sees.
+        let rehearse = CommandLine.arguments.contains("--rehearse-first-launch")
+        engine = NemotronEngine(rehearseFirstLaunch: rehearse) { [weak self] event in self?.handle(event) }
         Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [captions] _ in
             captions.clearIfIdle(after: 6)
         }

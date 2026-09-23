@@ -47,7 +47,9 @@ build/Parakeet.app/Contents/MacOS/Parakeet --bench clip.wav   # 16 kHz float32 W
 ```
 
 `--bench` plays a clip into the engine in real time and prints the captions
-and the CPU used. `swift scripts/make-icon.swift` redraws the app icon.
+and the CPU used. `open build/Parakeet.app --args --rehearse-first-launch`
+replays what a new user sees (a fake model download, then the first-time
+preparation pause) without touching the downloaded model. `swift scripts/make-icon.swift` redraws the app icon.
 
 ### Releasing
 
