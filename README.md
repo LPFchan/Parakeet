@@ -70,9 +70,9 @@ with the background from `Packaging/dmg-background.html`; re-render it with
 `scripts/make-dmg-background.sh`), publishes a GitHub release, and adds it to
 `docs/appcast.xml`, the
 [Sparkle](https://sparkle-project.org) update feed served by GitHub Pages at
-`parakeet.lost.plus` (a Cloudflare-proxied CNAME to `lpfchan.github.io`, so
-the feed URL doesn't depend on the repo's name). The site root just redirects
-here.
+`parakeet.lost.plus` (a DNS-only Cloudflare CNAME to `lpfchan.github.io`, so
+GitHub can issue its HTTPS certificate; the feed URL doesn't depend on the
+repo's name). The site root just redirects here.
 Version = the tag; build number = commit count.
 
 It needs three repository secrets:
