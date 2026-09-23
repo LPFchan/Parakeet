@@ -4,10 +4,11 @@ import Foundation
 /// SenseVoice Small via FluidAudio: Korean, Japanese, Chinese, Cantonese and
 /// English, with no language lock. It gives no word timings, so Silero VAD
 /// decides where an utterance ends; until then the utterance is re-transcribed
-/// on every 256 ms VAD chunk.
+/// every 128 ms.
 final class SenseVoiceEngine: Transcriber {
-    private static let chunk = VadManager.chunkSize   // 4096 samples = 256 ms
-    private static let maxSamples = 16_000 * 13        // nonstop speech this long forces a cut
+    private static let tick = 2_048                    // 128 ms between re-transcriptions
+    private static let maxLatin = 16_000 * 6           // nonstop speech this long is locked in at a gap…
+    private static let maxCJK = 16_000 * 13            // …but Korean/Japanese/Chinese get worse on short clips
     private static let preroll = 8_192                 // samples kept from before speech starts
 
     private let lock = NSLock()
@@ -42,6 +43,7 @@ final class SenseVoiceEngine: Transcriber {
         var state = await vad.makeStreamState()
         var pending: [Float] = []
         var audio: [Float] = []   // the current utterance
+        var unheard: [Float] = []  // audio the VAD hasn't seen yet (it takes 256 ms blocks)
         var shown = ""
 
         while !Task.isCancelled {
@@ -49,24 +51,30 @@ final class SenseVoiceEngine: Transcriber {
                 defer { incoming.removeAll(keepingCapacity: true) }
                 return incoming
             }
-            guard pending.count >= Self.chunk else {
+            guard pending.count >= Self.tick else {
                 try await Task.sleep(for: .milliseconds(20))
                 continue
             }
-            let samples = Array(pending.prefix(Self.chunk))
-            pending.removeFirst(Self.chunk)
+            let samples = Array(pending.prefix(Self.tick))
+            pending.removeFirst(Self.tick)
 
             // The tap streams digital silence when nothing plays; don't wake the ANE for it.
             if !state.triggered, !samples.contains(where: { abs($0) > 1e-4 }) {
-                audio = []
+                audio = []; unheard = []
                 continue
             }
-
-            let vadResult = try await vad.processStreamingChunk(samples, state: state, config: segmentation)
-            state = vadResult.state
             audio += samples
+            unheard += samples
 
-            if vadResult.event?.isEnd == true {
+            var ended = false
+            if unheard.count >= VadManager.chunkSize {
+                let result = try await vad.processStreamingChunk(unheard, state: state, config: segmentation)
+                state = result.state
+                ended = result.event?.isEnd == true
+                unheard = []
+            }
+
+            if ended {
                 let text = try await asr.transcribe(audio: audio)
                 if !text.isEmpty { emit(.final(text)) } else if !shown.isEmpty { emit(.partial("")) }
                 audio = []; shown = ""
@@ -78,7 +86,8 @@ final class SenseVoiceEngine: Transcriber {
                 continue
             }
 
-            if audio.count >= Self.maxSamples {
+            let cjk = shown.unicodeScalars.contains { $0.value >= 0x3000 }
+            if audio.count >= (cjk ? Self.maxCJK : Self.maxLatin) {
                 let cut = Self.quietestPoint(in: audio)
                 let text = try await asr.transcribe(audio: Array(audio[..<cut]))
                 if !text.isEmpty { emit(.final(text)) }
@@ -90,12 +99,12 @@ final class SenseVoiceEngine: Transcriber {
         }
     }
 
-    /// The quietest 50 ms of the last 5 s (sparing the final second), likely a
+    /// The quietest 50 ms between 2 s in and the last half second, likely a
     /// gap between words, so a forced cut doesn't split one.
     private static func quietestPoint(in audio: [Float]) -> Int {
         let window = 800, hop = 160
-        var best = (energy: Float.infinity, at: audio.count - 16_000)
-        for start in stride(from: audio.count - 5 * 16_000, to: audio.count - 16_000 - window, by: hop) {
+        var best = (energy: Float.infinity, at: audio.count - 8_000)
+        for start in stride(from: 32_000, to: audio.count - 8_000 - window, by: hop) {
             let energy = audio[start..<start + window].reduce(0) { $0 + $1 * $1 }
             if energy < best.energy { best = (energy, start + window / 2) }
         }

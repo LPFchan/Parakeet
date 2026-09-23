@@ -44,7 +44,10 @@ their text clean but costs CPU. The Nemotron models are built for live audio:
 each 0.56 s of sound is processed once and words are never rewritten, so they
 are far cheaper, but text updates every 0.56 s and numbers come out as words.
 SenseVoice has no word timings, so a voice detector (Silero VAD) decides
-when a sentence has ended; until then it re-reads the sentence every 0.26 s.
+when a sentence has ended; until then it re-reads the sentence every 0.13 s.
+Long English stretches lock in at a gap between words after 6 s; Korean,
+Japanese and Chinese wait for a pause (up to 13 s), since this model gets
+noticeably worse at them on short clips.
 The Neural Engine models run in-process via
 [FluidAudio](https://github.com/FluidInference/FluidAudio) and download on
 first use. The default is `multilingual`; the choice is remembered.

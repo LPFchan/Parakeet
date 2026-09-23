@@ -220,7 +220,7 @@ if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "--bench" {
                 exit(0)
             }
         case .final(let text): print(t, "final:", text)
-        case .partial: break
+        case .partial(let text): print(t, "  ~", text)
         case .exited(let reason): print("exited:", reason); exit(1)
         }
     }
