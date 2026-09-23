@@ -34,7 +34,7 @@ jobs:
       - name: Build
         run: |
           sh scripts/build-app.sh
-          ditto -c -k --keepParent build/Parakeet.app build/Parakeet.zip
+          sh scripts/make-dmg.sh
 
       - name: Sign update
         env:
@@ -42,12 +42,22 @@ jobs:
         run: |
           mkdir -p build/sparkle
           curl -sL https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-2.10.0.tar.xz | tar xJ -C build/sparkle
-          echo "$SPARKLE_PRIVATE_KEY" | build/sparkle/bin/sign_update --ed-key-file - build/Parakeet.zip > build/signature
+          echo "$SPARKLE_PRIVATE_KEY" | build/sparkle/bin/sign_update --ed-key-file - build/Parakeet.dmg > build/signature
 
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" build/Parakeet.zip --title "Parakeet ${GITHUB_REF_NAME#v}" --generate-notes
+        run: |
+          cat > build/notes.md <<'EOF'
+          ## Installing
+
+          1. Open `Parakeet.dmg` and drag **Parakeet** into **Applications**.
+          2. Open Parakeet. macOS refuses the first launch because the app isn't notarized by Apple.
+          3. Go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**, then open it again.
+
+          Already installed? Parakeet updates itself.
+          EOF
+          gh release create "$GITHUB_REF_NAME" build/Parakeet.dmg --title "Parakeet ${GITHUB_REF_NAME#v}" --notes-file build/notes.md --generate-notes
 
       - name: Add to update feed
         run: |
@@ -56,7 +66,7 @@ jobs:
           git fetch origin main
           git checkout main
           python3 scripts/appcast.py "$version" "$build" \
-            "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/Parakeet.zip" "$(cat build/signature)"
+            "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/Parakeet.dmg" "$(cat build/signature)"
           git config user.name "github-actions[bot]"
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
           git commit -am "Appcast: $GITHUB_REF_NAME"

@@ -57,8 +57,11 @@ and preparation pause, without touching the downloaded model. `swift scripts/mak
 git tag v1.2.0 && git push origin v1.2.0
 ```
 
-`.github/workflows/release.yml` then builds and signs the app, publishes a
-GitHub release with `Parakeet.zip`, and adds it to `docs/appcast.xml`, the
+`.github/workflows/release.yml` then builds and signs the app, packs it into
+`Parakeet.dmg` (`scripts/make-dmg.sh`: [DMGMaker](https://github.com/saihgupr/DMGMaker)
+with the background from `Packaging/dmg-background.html`; re-render it with
+`scripts/make-dmg-background.sh`), publishes a GitHub release, and adds it to
+`docs/appcast.xml`, the
 [Sparkle](https://sparkle-project.org) update feed served by GitHub Pages.
 Version = the tag; build number = commit count.
 

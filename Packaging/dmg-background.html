@@ -1,0 +1,28 @@
+<!doctype html>
+<!-- The DMG window background (600×600, rendered at 2×). DMGMaker draws the
+     glass panel, arrow and "To install Parakeet" text on top, roughly the
+     middle band (y 170–470), so decoration stays out of it.
+     Render: scripts/make-dmg-background.sh -->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; width: 600px; height: 600px; overflow: hidden; }
+  body {
+    position: relative;
+    background:
+      radial-gradient(circle at 18% 12%, rgba(140, 219, 92, 0.55), transparent 55%),
+      radial-gradient(circle at 88% 92%, rgba(20, 150, 130, 0.45), transparent 50%),
+      linear-gradient(165deg, #2f9d58 0%, #1a7a4c 45%, #0e4d34 100%);
+  }
+  /* A soft bubble outline in the top corner, the icon's shape. */
+  svg { position: absolute; top: 30px; right: 36px; }
+</style>
+</head>
+<body>
+  <svg width="100" height="90" viewBox="0 0 100 90" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M22 4 H78 A18 18 0 0 1 96 22 V48 A18 18 0 0 1 78 66 H42 L24 84 V66 H22 A18 18 0 0 1 4 48 V22 A18 18 0 0 1 22 4 Z"/>
+    <path d="M22 28 H44 M52 28 H78 M22 42 H34 M42 42 H62 M70 42 H78"/>
+  </svg>
+</body>
+</html>
