@@ -69,10 +69,9 @@ It needs three repository secrets:
   keeping the same one means macOS remembers the audio permission across
   updates.
 
-GitHub can't show secrets again, so keep copies elsewhere. Losing the Sparkle
-key means existing installs can never update again. Locally both live in the
-login keychain (`generate_keys --account plus.lost.parakeet -x key.txt`
-exports the Sparkle key).
+GitHub can't show secrets again; backups live in passage (folder `sparkle`)
+and in the maintainer's login keychain. Losing the Sparkle key means existing
+installs can never update again.
 
 ## Credits
 
