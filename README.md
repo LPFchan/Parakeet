@@ -46,6 +46,12 @@ open build/Parakeet.app
 build/Parakeet.app/Contents/MacOS/Parakeet --bench clip.wav   # 16 kHz float32 WAV
 ```
 
+The interface is translated into the 28 languages Parakeet can caption, besides
+English. Translations live in `app/Resources/Localizable.xcstrings` (and
+`InfoPlist.xcstrings` for the permission prompt); Xcode can edit them, and
+`scripts/build-app.sh` compiles them into the app. Try one with
+`open build/Parakeet.app --args -AppleLanguages "(ko)"`.
+
 `--bench` plays a clip into the engine in real time and prints the captions
 and the CPU used. `open build/Parakeet.app --args --rehearse-first-launch`
 opens the welcome window as a new user sees it, with a fake model download

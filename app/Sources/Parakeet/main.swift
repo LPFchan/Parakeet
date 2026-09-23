@@ -18,7 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var engine: NemotronEngine?
     private var onboarding: Onboarding?   // set while the first-launch window is open
     private var onboardingWindow: OnboardingWindow?
-    private var status = "Loading speech model…"
+    private var status = String(localized: "Loading speech model…")
     private var ready = false
     private var listening = false
 
@@ -79,31 +79,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.removeAllItems()
         menu.addItem(withTitle: status, action: nil, keyEquivalent: "")
         menu.addItem(.separator())
-        let toggle = menu.addItem(withTitle: "Captions", action: #selector(toggleListening), keyEquivalent: "l")
+        let toggle = menu.addItem(withTitle: String(localized: "Captions"), action: #selector(toggleListening), keyEquivalent: "l")
         toggle.state = listening ? .on : .off
         toggle.isEnabled = ready
-        let copy = menu.addItem(withTitle: "Copy Transcript", action: #selector(copyTranscript), keyEquivalent: "")
+        let copy = menu.addItem(withTitle: String(localized: "Copy Transcript"), action: #selector(copyTranscript), keyEquivalent: "")
         copy.isEnabled = !captions.transcript.isEmpty
         menu.addItem(.separator())
-        let login = menu.addItem(withTitle: "Open at Login", action: #selector(toggleOpenAtLogin), keyEquivalent: "")
+        let login = menu.addItem(withTitle: String(localized: "Open at Login"), action: #selector(toggleOpenAtLogin), keyEquivalent: "")
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
-        let update = menu.addItem(withTitle: "Check for Updates…", action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)), keyEquivalent: "")
+        let update = menu.addItem(withTitle: String(localized: "Check for Updates…"), action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)), keyEquivalent: "")
         update.target = updater
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Quit Parakeet", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(withTitle: String(localized: "Quit Parakeet"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
     }
 
     private func handle(_ event: EngineEvent) {
         switch event {
         case .downloading(let fraction):
-            status = "Downloading speech model… \(Int(fraction * 100))%"
+            status = String(localized: "Downloading speech model… \(Int(fraction * 100))%")
             onboarding?.model = .downloading(fraction)
         case .preparing:
-            status = "Preparing speech model…"
+            status = String(localized: "Preparing speech model…")
             onboarding?.model = .preparing
         case .ready:
             ready = true
-            status = "Ready"
+            status = String(localized: "Ready")
             onboarding?.model = .ready
             // Captions start once the welcome window is done with.
             if onboarding == nil { startListening() }
@@ -115,7 +115,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             ready = false
             engine = nil
             stopListening()
-            status = "Speech model stopped: \(reason.isEmpty ? "unknown error" : reason)"
+            status = String(localized: "Speech model stopped: \(reason.isEmpty ? String(localized: "unknown error") : reason)")
         }
         updateIcon()
     }
@@ -128,11 +128,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         do {
             try tap.start { [weak self] pcm in self?.engine?.send(pcm) }
             listening = true
-            status = "Listening to system audio"
+            status = String(localized: "Listening to system audio")
             panel.orderFrontRegardless()
         } catch {
             tap.stop()
-            status = "Can't capture audio: \(error.localizedDescription)"
+            status = String(localized: "Can't capture audio: \(error.localizedDescription)")
         }
         updateIcon()
     }
@@ -141,7 +141,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         tap.stop()
         listening = false
         panel.orderOut(nil)
-        if ready { status = "Off" }
+        if ready { status = String(localized: "Off") }
         updateIcon()
     }
 

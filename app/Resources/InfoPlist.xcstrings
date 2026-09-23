@@ -1,0 +1,179 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "NSAudioCaptureUsageDescription": {
+      "comment": "Parakeet listens to system audio to show live captions. Audio never leaves this Mac.",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يستمع Parakeet إلى صوت النظام لعرض ترجمة نصية مباشرة. لا يغادر الصوت جهاز Mac هذا أبدًا."
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeet слуша системния звук, за да показва субтитри на живо. Звукът никога не напуска този Mac."
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeet poslouchá systémový zvuk, aby mohl zobrazovat živé titulky. Zvuk tento Mac nikdy neopustí."
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeet lytter til systemlyd for at vise live-undertekster. Lyden forlader aldrig denne Mac."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeet hört das Systemaudio, um Live-Untertitel anzuzeigen. Audio verlässt diesen Mac nie."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeet escucha el audio del sistema para mostrar subtítulos en directo. El audio nunca sale de este Mac."
+          }
+        },
+        "et": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeet kuulab süsteemi heli, et näidata otsesubtiitreid. Heli ei lahku sellest Macist kunagi."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeet kuuntelee järjestelmän ääntä näyttääkseen reaaliaikaisen tekstityksen. Ääni ei koskaan poistu tästä Macista."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeet écoute l'audio du système pour afficher des sous-titres en direct. L'audio ne quitte jamais ce Mac."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeet लाइव कैप्शन दिखाने के लिए सिस्टम ऑडियो सुनता है। ऑडियो कभी इस Mac से बाहर नहीं जाता।"
+          }
+        },
+        "hr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeet sluša zvuk sustava kako bi prikazivao titlove uživo. Zvuk nikad ne napušta ovaj Mac."
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A Parakeet a rendszerhangot figyeli, hogy élő feliratokat jelenítsen meg. A hang soha nem hagyja el ezt a Macet."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeet ascolta l'audio di sistema per mostrare sottotitoli in tempo reale. L'audio non lascia mai questo Mac."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeetはリアルタイム字幕を表示するためにシステムオーディオを聞きます。音声がこのMacの外に出ることはありません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeet은 실시간 자막을 표시하기 위해 시스템 오디오를 듣습니다. 오디오는 이 Mac 밖으로 나가지 않습니다."
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeet lytter til systemlyd for å vise direkteteksting. Lyden forlater aldri denne Macen."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeet luistert naar systeemaudio om live ondertitels te tonen. Audio verlaat deze Mac nooit."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeet słucha dźwięku systemowego, aby wyświetlać napisy na żywo. Dźwięk nigdy nie opuszcza tego Maca."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O Parakeet ouve o áudio do sistema para mostrar legendas ao vivo. O áudio nunca sai deste Mac."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O Parakeet ouve o áudio do sistema para mostrar legendas em direto. O áudio nunca sai deste Mac."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeet ascultă sunetul sistemului pentru a afișa subtitrări live. Sunetul nu părăsește niciodată acest Mac."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeet слушает системный звук, чтобы показывать субтитры в реальном времени. Звук никогда не покидает этот Mac."
+          }
+        },
+        "sk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeet počúva systémový zvuk, aby mohol zobrazovať živé titulky. Zvuk tento Mac nikdy neopustí."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeet lyssnar på systemljud för att visa direkttextning. Ljudet lämnar aldrig denna Mac."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeet canlı altyazı göstermek için sistem sesini dinler. Ses bu Mac'ten asla çıkmaz."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeet слухає системний звук, щоб показувати субтитри наживо. Звук ніколи не покидає цей Mac."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeet nghe âm thanh hệ thống để hiển thị phụ đề trực tiếp. Âm thanh không bao giờ rời khỏi máy Mac này."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeet 会收听系统音频以显示实时字幕。音频绝不会离开这台 Mac。"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

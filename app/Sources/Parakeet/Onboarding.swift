@@ -104,16 +104,19 @@ private struct OnboardingView: View {
 }
 
 private struct PrimaryButton: View {
-    let title: String
+    let title: LocalizedStringKey
     let action: () -> Void
     @Environment(\.isEnabled) private var enabled
-    init(_ title: String, action: @escaping () -> Void) { self.title = title; self.action = action }
+    init(_ title: LocalizedStringKey, action: @escaping () -> Void) { self.title = title; self.action = action }
 
     var body: some View {
         Button(action: action) {
             Text(title)
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .padding(.horizontal, 16)
                 .frame(width: 300, height: 48)
                 .background(green.opacity(enabled ? 1 : 0.45), in: .rect(cornerRadius: 12))
         }
@@ -123,12 +126,12 @@ private struct PrimaryButton: View {
 }
 
 private struct Header: View {
-    let title: String
-    let subtitle: String
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
 
     var body: some View {
         VStack(spacing: 10) {
-            Text(title).font(.system(size: 30, weight: .bold))
+            Text(title).font(.system(size: 30, weight: .bold)).multilineTextAlignment(.center)
             Text(subtitle)
                 .font(.system(size: 16))
                 .foregroundStyle(.secondary)
@@ -176,8 +179,8 @@ private struct CaptionPreview: View {
 }
 
 private struct Note: View {
-    let text: String
-    init(_ text: String) { self.text = text }
+    let text: LocalizedStringKey
+    init(_ text: LocalizedStringKey) { self.text = text }
 
     var body: some View {
         Text(text)
@@ -201,7 +204,7 @@ private struct PermissionStep: View {
                 case .allowed:
                     Label("Audio access allowed", systemImage: "checkmark.circle.fill").foregroundStyle(green)
                 case .denied:
-                    Text("Access is off. In System Settings, open Privacy & Security → Screen & System Audio Recording and turn on Parakeet.")
+                    Text("Audio access is off. Open System Settings and turn on Parakeet.")
                         .foregroundStyle(.secondary)
                 case .unknown:
                     Text("macOS will ask you to confirm.").foregroundStyle(.secondary)
@@ -288,8 +291,8 @@ private struct Symbol: View {
 }
 
 private struct Caption: View {
-    let text: String
-    init(_ text: String) { self.text = text }
+    let text: LocalizedStringKey
+    init(_ text: LocalizedStringKey) { self.text = text }
 
     var body: some View {
         Text(text)

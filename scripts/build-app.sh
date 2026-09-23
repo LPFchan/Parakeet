@@ -21,12 +21,19 @@ mkdir -p "$app/Contents/MacOS" "$app/Contents/Frameworks" "$app/Contents/Resourc
 cp "$bin/Parakeet" "$app/Contents/MacOS/Parakeet"
 ditto "$bin/Sparkle.framework" "$app/Contents/Frameworks/Sparkle.framework"
 cp "$root/app/Resources/AppIcon.icns" "$app/Contents/Resources/AppIcon.icns"
+# Translations: String Catalogs → <lang>.lproj/*.strings. English is the source,
+# but still needs its own folder so macOS counts it as a supported language.
+for catalog in Localizable InfoPlist; do
+    xcrun xcstringstool compile "$root/app/Resources/$catalog.xcstrings" --output-directory "$app/Contents/Resources"
+done
+mkdir -p "$app/Contents/Resources/en.lproj"
 cat > "$app/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
   <key>CFBundleIdentifier</key><string>plus.lost.parakeet</string>
+  <key>CFBundleDevelopmentRegion</key><string>en</string>
   <key>CFBundleName</key><string>Parakeet</string>
   <key>CFBundleDisplayName</key><string>Parakeet</string>
   <key>CFBundleExecutable</key><string>Parakeet</string>
