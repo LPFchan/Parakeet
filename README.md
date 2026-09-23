@@ -12,7 +12,8 @@ leaves it.
 - Captions appear in a floating box whenever something speaks. Drag it
   anywhere; it remembers where. New words type in and scroll up line by line.
 - The menu bar icon has a Captions on/off switch (⌘L), Copy Transcript,
-  Open at Login and Check for Updates. Updates also install themselves.
+  Open at Login and Check for Updates. It checks for updates on every launch
+  (and daily while running) and offers to install them.
 - The same switch works from a terminal:
 
   ```sh

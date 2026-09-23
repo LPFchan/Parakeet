@@ -14,7 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private lazy var panel = CaptionPanel(captions: captions)
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let tap = SystemAudioTap()
-    private let updater = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+    private lazy var updater = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: self)
     private var engine: NemotronEngine?
     private var onboarding: Onboarding?   // set while the first-launch window is open
     private var onboardingWindow: OnboardingWindow?
@@ -24,6 +24,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         signal(SIGPIPE, SIG_IGN)
+        // Sparkle's own schedule checks at most daily and skips the first launch;
+        // also check on every launch, right after the updater starts (as Sparkle advises).
+        if updater.updater.automaticallyChecksForUpdates { updater.updater.checkForUpdatesInBackground() }
         let menu = NSMenu()
         menu.delegate = self
         statusItem.menu = menu
@@ -163,6 +166,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func updateIcon() {
         let name = listening ? "captions.bubble.fill" : "captions.bubble"
         statusItem.button?.image = NSImage(systemSymbolName: name, accessibilityDescription: "Parakeet")
+    }
+}
+
+extension AppDelegate: SPUStandardUserDriverDelegate {
+    // A menu bar app is never the active app, so Sparkle would leave an update it
+    // found waiting behind other windows. Bring it to the front instead.
+    var supportsGentleScheduledUpdateReminders: Bool { true }
+
+    func standardUserDriverShouldHandleShowingScheduledUpdate(_ update: SUAppcastItem, andInImmediateFocus immediateFocus: Bool) -> Bool {
+        immediateFocus
+    }
+
+    func standardUserDriverWillHandleShowingUpdate(_ handleShowingUpdate: Bool, forUpdate update: SUAppcastItem, state: SPUUserUpdateState) {
+        guard !handleShowingUpdate else { return }
+        DispatchQueue.main.async { [self] in
+            NSApp.activate()
+            updater.checkForUpdates(nil)
+        }
     }
 }
 
