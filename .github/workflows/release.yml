@@ -1,0 +1,63 @@
+# Push a tag like v1.2.0 to build, sign and publish a release, then add it to
+# the Sparkle feed served by GitHub Pages (docs/appcast.xml on main).
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the build number is the commit count
+
+      - name: Import signing certificate
+        env:
+          P12: ${{ secrets.SIGNING_CERT_P12 }}
+          P12_PASSWORD: ${{ secrets.SIGNING_CERT_PASSWORD }}
+        run: |
+          kc="$RUNNER_TEMP/signing.keychain-db"
+          security create-keychain -p "" "$kc"
+          security set-keychain-settings "$kc"
+          security unlock-keychain -p "" "$kc"
+          echo "$P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$kc" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" "$kc"
+          security list-keychains -d user -s "$kc" $(security list-keychains -d user | tr -d '"')
+
+      - name: Build
+        run: |
+          sh scripts/build-app.sh
+          ditto -c -k --keepParent build/Parakeet.app build/Parakeet.zip
+
+      - name: Sign update
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          mkdir -p build/sparkle
+          curl -sL https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-2.10.0.tar.xz | tar xJ -C build/sparkle
+          echo "$SPARKLE_PRIVATE_KEY" | build/sparkle/bin/sign_update --ed-key-file - build/Parakeet.zip > build/signature
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" build/Parakeet.zip --title "Parakeet ${GITHUB_REF_NAME#v}" --generate-notes
+
+      - name: Add to update feed
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          build=$(git rev-list --count HEAD)
+          git fetch origin main
+          git checkout main
+          python3 scripts/appcast.py "$version" "$build" \
+            "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/Parakeet.zip" "$(cat build/signature)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Appcast: $GITHUB_REF_NAME"
+          git push origin main

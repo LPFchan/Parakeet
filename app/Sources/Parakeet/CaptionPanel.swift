@@ -88,6 +88,7 @@ final class CaptionPanel: NSPanel {
         let width = min(900, screen.width * 0.7)
         let height: CGFloat = 150
         setFrame(.init(x: screen.midX - width / 2, y: screen.minY + 60, width: width, height: height), display: false)
+        setFrameAutosaveName("Captions")  // remember where it was dragged to
 
         let host = NSHostingView(rootView: CaptionView(captions: captions))
         host.sizingOptions = []

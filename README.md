@@ -1,75 +1,82 @@
 # Parakeet
 
-Live captions for everything your Mac plays, running fully on-device with
-[moondream/parakeet-redux](https://huggingface.co/moondream/parakeet-redux)
-or one of the other speech models listed below.
-macOS 15+, Apple silicon.
+Live captions for everything your Mac plays: videos, calls, podcasts. Korean,
+Japanese, English and about 30 more languages, detected on their own. Speech
+recognition runs entirely on your Mac's Neural Engine; no audio or text
+leaves it.
 
-## Setup
+**[Download](https://lpfchan.github.io/parakeet/)** · Apple silicon, macOS 15+
 
-```sh
-uv venv --python 3.12 .venv
-uv pip install --python .venv/bin/python "moondream>=2.4.1" numpy
-scripts/build-app.sh
-open build/Parakeet.app
-```
+## Using it
 
-The first launch downloads the model (~180 MB) and asks for permission to
-record system audio. Captions appear in a floating box you can drag anywhere,
-typing in as they arrive and scrolling up line by line;
-the menu bar icon has a Captions on/off switch, a Model picker, Copy
-Transcript and Quit.
+- Captions appear in a floating box whenever something speaks. Drag it
+  anywhere; it remembers where. New words type in and scroll up line by line.
+- The menu bar icon has a Captions on/off switch (⌘L), Copy Transcript,
+  Open at Login and Check for Updates. Updates also install themselves.
+- The same switch works from a terminal:
 
-The same controls work from a terminal, without touching the menu:
+  ```sh
+  alias parakeet=/Applications/Parakeet.app/Contents/MacOS/Parakeet
+  parakeet status
+  parakeet captions on|off
+  ```
 
-```sh
-alias parakeet="$PWD/build/Parakeet.app/Contents/MacOS/Parakeet"
-parakeet status
-parakeet captions on|off
-parakeet model redux|ane|nemotron|multilingual|sensevoice
-```
-
-## Models
-
-| Model | Runs on | CPU | Notes |
-| --- | --- | --- | --- |
-| `redux` | GPU (Python) | ~35% | moondream/parakeet-redux; English |
-| `ane` | Neural Engine | ~35% | Parakeet TDT v2 (original NVIDIA weights); English |
-| `nemotron` | Neural Engine | ~5% | Nemotron Speech Streaming; English |
-| `multilingual` | Neural Engine | ~9% | Nemotron 3.5 ASR; detects the language (Korean, Japanese, English and ~30 more) |
-| `sensevoice` | Neural Engine | ~5% | SenseVoice Small; Korean, Japanese, Chinese, Cantonese, English, without locking onto one |
-
-The two Parakeet models re-read the last few seconds every 0.2 s, which keeps
-their text clean but costs CPU. The Nemotron models are built for live audio:
-each 0.56 s of sound is processed once and words are never rewritten, so they
-are far cheaper, but text updates every 0.56 s and numbers come out as words.
-SenseVoice has no word timings, so a voice detector (Silero VAD) decides
-when a sentence has ended; until then it re-reads the sentence every 0.13 s.
-Long English stretches lock in at a gap between words after 6 s; Korean,
-Japanese and Chinese wait for a pause (up to 13 s), since this model gets
-noticeably worse at them on short clips.
-The Neural Engine models run in-process via
-[FluidAudio](https://github.com/FluidInference/FluidAudio) and download on
-first use. The default is `multilingual`; the choice is remembered.
+The app isn't notarized by Apple, so the first launch needs System Settings →
+Privacy & Security → **Open Anyway**. The first launch also downloads the
+speech model (~640 MB) from Hugging Face.
 
 ## How it works
 
-- `app/` — Swift menu bar app. Captures all system audio with a Core Audio
-  process tap, converts it to 16 kHz mono, and pipes it to the engine.
-- `engine/engine.py` — re-transcribes the pending audio every 0.2 s and
-  prints JSON lines (`partial` / `final`). Text is locked in when the model's
-  word timestamps show a pause, when a new sentence has started, or after 20 s
-  of nonstop speech.
+- `SystemAudioTap.swift` captures all system audio with a Core Audio process
+  tap and converts it to 16 kHz mono.
+- `NemotronEngine.swift` streams it through NVIDIA
+  [Nemotron 3.5 ASR](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b)
+  (via [FluidAudio](https://github.com/FluidInference/FluidAudio)'s Core ML
+  build). Each 0.56 s of sound is processed once and words are never
+  rewritten, so it uses ~5–10% of one CPU core. Text locks in after ~1 s
+  without new words. When nothing is playing, the model isn't run at all.
+- `CaptionPanel.swift` draws the captions. Only a scroll offset is animated;
+  animating the text itself cost ~90% CPU.
 
-Photon's own live mode waits 4 s before its first preview, so the engine runs
-its own loop instead. Photon also posts usage counts (no audio or text) to
-api.moondream.ai; the engine points that at a dead local address.
+## Development
 
-`Parakeet --bench clip.wav [nemotron|sensevoice|auto|ko-KR|…]` plays a 16 kHz float32
-WAV into an engine in real time and prints what it heard and its CPU use
-(no model argument = `ane`).
+```sh
+scripts/build-app.sh          # → build/Parakeet.app
+open build/Parakeet.app
+build/Parakeet.app/Contents/MacOS/Parakeet --bench clip.wav   # 16 kHz float32 WAV
+```
 
-Engine errors go to `~/Library/Logs/Parakeet/engine.log`.
+`--bench` plays a clip into the engine in real time and prints the captions
+and the CPU used. `swift scripts/make-icon.swift` redraws the app icon.
 
-The `redux` model runs from this checkout's `.venv`, so rebuild the app if
-you move the folder.
+### Releasing
+
+```sh
+git tag v1.2.0 && git push origin v1.2.0
+```
+
+`.github/workflows/release.yml` then builds and signs the app, publishes a
+GitHub release with `Parakeet.zip`, and adds it to `docs/appcast.xml`, the
+[Sparkle](https://sparkle-project.org) update feed served by GitHub Pages.
+Version = the tag; build number = commit count.
+
+It needs three repository secrets:
+
+- `SPARKLE_PRIVATE_KEY`: signs updates; the app only installs updates signed
+  with it. Its public half is `SUPublicEDKey` in `scripts/build-app.sh`.
+- `SIGNING_CERT_P12`, `SIGNING_CERT_PASSWORD`: the "Parakeet Self-Signed"
+  code-signing certificate (base64 .p12). It isn't trusted by Gatekeeper, but
+  keeping the same one means macOS remembers the audio permission across
+  updates.
+
+GitHub can't show secrets again, so keep copies elsewhere. Losing the Sparkle
+key means existing installs can never update again. Locally both live in the
+login keychain (`generate_keys --account plus.lost.parakeet -x key.txt`
+exports the Sparkle key).
+
+## Credits
+
+[FluidAudio](https://github.com/FluidInference/FluidAudio) (Apache-2.0),
+[Sparkle](https://github.com/sparkle-project/Sparkle) (MIT), and NVIDIA's
+Nemotron 3.5 ASR model ([OpenMDW-1.1](https://openmdw.ai/license/1-1/)),
+downloaded at first launch. Parakeet itself is MIT-licensed.
