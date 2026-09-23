@@ -5,7 +5,7 @@ Japanese, English and about 30 more languages, detected on their own. Speech
 recognition runs entirely on your Mac's Neural Engine; no audio or text
 leaves it.
 
-**[Download](https://lpfchan.github.io/parakeet/)** · Apple silicon, macOS 15+
+**[Download](https://github.com/LPFchan/Parakeet/releases/latest/download/Parakeet.dmg)** · Apple silicon, macOS 15+
 
 ## Using it
 
@@ -69,7 +69,10 @@ git tag v1.2.0 && git push origin v1.2.0
 with the background from `Packaging/dmg-background.html`; re-render it with
 `scripts/make-dmg-background.sh`), publishes a GitHub release, and adds it to
 `docs/appcast.xml`, the
-[Sparkle](https://sparkle-project.org) update feed served by GitHub Pages.
+[Sparkle](https://sparkle-project.org) update feed served by GitHub Pages at
+`parakeet.lost.plus` (a Cloudflare-proxied CNAME to `lpfchan.github.io`, so
+the feed URL doesn't depend on the repo's name). The site root just redirects
+here.
 Version = the tag; build number = commit count.
 
 It needs three repository secrets:

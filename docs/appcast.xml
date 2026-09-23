@@ -2,7 +2,7 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>Parakeet</title>
-    <link>https://lpfchan.github.io/parakeet/appcast.xml</link>
+    <link>https://parakeet.lost.plus/appcast.xml</link>
     <language>en</language>
     <item>
       <title>Version 1.1.1</title>

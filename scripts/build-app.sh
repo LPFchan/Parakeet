@@ -46,7 +46,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
   <key>NSHumanReadableCopyright</key><string>© 2026 LPFchan</string>
   <key>NSAudioCaptureUsageDescription</key><string>Parakeet listens to system audio to show live captions. Audio never leaves this Mac.</string>
-  <key>SUFeedURL</key><string>https://lpfchan.github.io/parakeet/appcast.xml</string>
+  <key>SUFeedURL</key><string>https://parakeet.lost.plus/appcast.xml</string>
   <key>SUPublicEDKey</key><string>bQtN+t2++IUhG6RJr/kCBTkEHRORYjUZnCcwplEwn+A=</string>
   <key>SUEnableAutomaticChecks</key><true/>
 </dict>

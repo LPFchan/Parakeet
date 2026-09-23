@@ -16,7 +16,7 @@ item = f"""    <item>
       <sparkle:version>{build}</sparkle:version>
       <sparkle:shortVersionString>{version}</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <sparkle:fullReleaseNotesLink>https://github.com/LPFchan/parakeet/releases/tag/v{version}</sparkle:fullReleaseNotesLink>
+      <sparkle:fullReleaseNotesLink>https://github.com/LPFchan/Parakeet/releases/tag/v{version}</sparkle:fullReleaseNotesLink>
       <enclosure url="{url}" type="application/octet-stream" {signature.strip()}/>
     </item>
 """
