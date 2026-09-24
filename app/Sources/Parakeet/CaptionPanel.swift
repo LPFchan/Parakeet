@@ -83,9 +83,12 @@ final class Translator {
     var target = UserDefaults.standard.string(forKey: "translateTo").map(Locale.Language.init(identifier:)) {
         didSet {
             UserDefaults.standard.set(target?.minimalIdentifier, forKey: "translateTo")
-            queue.removeAll(); draft = ""; output.clear()
+            queue.removeAll(); draft = ""; output.clear(); hearingNative = false
         }
     }
+    /// The language translated into is taken as the user's own: while the
+    /// speech is in it, there is nothing to caption and the box hides.
+    private(set) var hearingNative = false
     /// What Translation can translate into, by name.
     private(set) var languages: [Locale.Language] = []
     /// The language being heard. Translation needs it spelled out: left to
@@ -127,12 +130,18 @@ final class Translator {
         for await _ in signals {
             while let (piece, ends) = queue.first {
                 let text = draft.isEmpty ? piece : draft + " " + piece
-                let heard = language(of: text)
+                let heard = Self.language(of: text, leaning: source)
+                if heard == target?.languageCode {  // hidden anyway; nothing to show
+                    queue.removeFirst()
+                    draft = ""
+                    output.clear()
+                    continue
+                }
                 if let heard, heard != target?.languageCode, heard != source?.languageCode {
                     source = Locale.Language(languageCode: heard)  // a session for the new language picks it up
                     return
                 }
-                // Already in the target language, or nothing to translate from yet: show it as heard.
+                // Nothing to translate from yet: show it as heard.
                 let translate = source != nil && (heard ?? source?.languageCode) != target?.languageCode
                 let result = translate ? try? await session.translate(text) : nil
                 if Task.isCancelled { return }  // keep it queued for the next session
@@ -158,13 +167,25 @@ final class Translator {
         output.lock(output.partial)
     }
 
+    /// Follows the speech, live text included, so the box hides as soon as it
+    /// turns native and comes back when it doesn't. Returns whether it switched.
+    func hear(_ text: String) -> Bool {
+        guard target != nil, text.count >= 12,
+              let heard = Self.language(of: text, confidence: 0.8) else { return false }
+        let native = heard == target?.languageCode
+        guard native != hearingNative else { return false }
+        hearingNative = native
+        output.clear()
+        return true
+    }
+
     /// Short fragments are ambiguous, so this leans toward the language already
     /// being heard and only switches on a confident guess.
-    private func language(of text: String) -> Locale.LanguageCode? {
+    private static func language(of text: String, leaning toward: Locale.Language? = nil, confidence: Double = 0.6) -> Locale.LanguageCode? {
         let recognizer = NLLanguageRecognizer()
-        if let code = source?.languageCode?.identifier { recognizer.languageHints = [NLLanguage(rawValue: code): 0.8] }
+        if let code = toward?.languageCode?.identifier { recognizer.languageHints = [NLLanguage(rawValue: code): 0.8] }
         recognizer.processString(text)
-        guard let (language, confidence) = recognizer.languageHypotheses(withMaximum: 1).first, confidence >= 0.6 else { return nil }
+        guard let (language, sure) = recognizer.languageHypotheses(withMaximum: 1).first, sure >= confidence else { return nil }
         return Locale.Language(identifier: language.rawValue).languageCode
     }
 }
@@ -207,11 +228,12 @@ struct CaptionView: View {
 
     private var translation: Captions? { translator?.target == nil ? nil : translator?.output }
     private var isEmpty: Bool { captions.isEmpty && translation?.isEmpty ?? true }
+    private var shown: Bool { !isEmpty && !(translation != nil && translator?.hearingNative == true) }
 
     var body: some View {
         VStack {
             Spacer(minLength: 0)
-            if !isEmpty {
+            if shown {
                 HStack(alignment: .center, spacing: 14) {
                     // Translating: the translation large on top, the original live below.
                     VStack(spacing: 6) {
@@ -256,7 +278,7 @@ struct CaptionView: View {
                 .transition(.opacity)
             }
         }
-        .animation(.easeOut(duration: 0.3), value: isEmpty)
+        .animation(.easeOut(duration: 0.3), value: shown)
         .translationTask(translator?.configuration) { session in await translator?.run(session) }
     }
 }

@@ -17,7 +17,9 @@ leaves it.
   Hovering over it shows buttons to turn captions off, copy the transcript,
   and pick a language to translate into.
 - With a language picked, the translation shows large and the original
-  small underneath. macOS asks once to download each language it needs.
+  small underneath. That language is taken as your own: while the audio is
+  in it, the box stays hidden. macOS asks once to download each language it
+  needs.
 - The menu bar icon has a Captions on/off switch (⌘L), Copy Transcript,
   Translate To, Open at Login and Check for Updates. It checks for updates on every launch
   (and daily while running) and offers to install them.

@@ -140,13 +140,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             // Captions start once the welcome window is done with.
             if onboarding == nil { startListening() }
         case .partial(let text):
+            if translator.hear(text) { captions.clear() }  // a fresh box when the language flips
             captions.update(text)
         case .final(let text):
-            captions.lock(text)
-            translator.translate(text, ends: true)
+            lock(text, endsSentence: true)
         case .fragment(let text):
-            captions.lock(text)
-            translator.translate(text, ends: false)
+            lock(text, endsSentence: false)
         case .exited(let reason):
             let reason = reason.isEmpty ? String(localized: "unknown error") : reason
             ready = false
@@ -165,6 +164,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         onboarding?.model = .waiting
         engine = NemotronEngine(rehearseFirstLaunch: rehearse) { [weak self] event in self?.handle(event) }
         updateIcon()
+    }
+
+    private func lock(_ text: String, endsSentence: Bool) {
+        if translator.hear(text) { captions.clear() }
+        captions.lock(text)
+        translator.translate(text, ends: endsSentence)
     }
 
     @objc private func toggleListening() {
