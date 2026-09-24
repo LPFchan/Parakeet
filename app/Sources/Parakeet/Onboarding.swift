@@ -6,13 +6,14 @@ import SwiftUI
 @Observable
 final class Onboarding {
     enum Step: Int, CaseIterable { case welcome, permission, model, done }
-    enum ModelState: Equatable { case waiting, downloading(Double), preparing, ready }
+    enum ModelState: Equatable { case waiting, downloading(Double), preparing, ready, failed(String) }
 
     var step = Step.welcome
     var model = ModelState.waiting
     var permission = AudioPermission.status
     var openAtLogin = true
     @ObservationIgnored var onFinish: () -> Void = {}
+    @ObservationIgnored var onRetry: () -> Void = {}
 }
 
 final class OnboardingWindow: NSWindow, NSWindowDelegate {
@@ -91,8 +92,12 @@ private struct OnboardingView: View {
                 }
             }
         case .model:
-            PrimaryButton(onboarding.model == .ready ? "Continue" : "Getting ready…") { next() }
-                .disabled(onboarding.model != .ready)
+            if case .failed = onboarding.model {
+                PrimaryButton("Try Again") { onboarding.onRetry() }
+            } else {
+                PrimaryButton(onboarding.model == .ready ? "Continue" : "Getting ready…") { next() }
+                    .disabled(onboarding.model != .ready)
+            }
         case .done:
             PrimaryButton("Start Captions") { onboarding.onFinish() }
         }
@@ -244,6 +249,11 @@ private struct ModelStep: View {
                     Label("Ready", systemImage: "checkmark.circle.fill")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(green)
+                case .failed(let reason):
+                    Label(reason, systemImage: "exclamationmark.triangle.fill")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
                 }
             }
             .frame(width: 360)

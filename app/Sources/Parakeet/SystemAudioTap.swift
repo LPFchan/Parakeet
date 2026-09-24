@@ -10,6 +10,11 @@ final class SystemAudioTap {
     private let queue = DispatchQueue(label: "parakeet.tap", qos: .userInitiated)
 
     func start(onAudio: @escaping (Data) -> Void) throws {
+        // A running tap would otherwise keep the Mac from idle-sleeping.
+        var address = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertySleepingIsAllowed, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+        var sleepingIsAllowed: UInt32 = 1
+        AudioObjectSetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, UInt32(MemoryLayout<UInt32>.size), &sleepingIsAllowed)
+
         let description = CATapDescription(monoGlobalTapButExcludeProcesses: [])
         description.uuid = UUID()
         description.muteBehavior = .unmuted
@@ -66,6 +71,14 @@ final class SystemAudioTap {
         procID = nil
         aggregateID = AudioObjectID(kAudioObjectUnknown)
         tapID = AudioObjectID(kAudioObjectUnknown)
+    }
+
+    /// The tap is clocked by the default output device. When that changes
+    /// (headphones plugged in or disconnected), `handler` runs on the main
+    /// queue so the tap can be rebuilt on the new device.
+    static func onOutputDeviceChange(_ handler: @escaping () -> Void) {
+        var address = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDefaultSystemOutputDevice, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+        AudioObjectAddPropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &address, .main) { _, _ in handler() }
     }
 
     private func tapFormat() throws -> AudioStreamBasicDescription {

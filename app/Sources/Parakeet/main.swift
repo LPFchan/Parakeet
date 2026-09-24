@@ -21,6 +21,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var status = String(localized: "Loading speech model…")
     private var ready = false
     private var listening = false
+    private var rehearse = false
+
+    /// What the menu and `Parakeet status` show; a revoked permission explains
+    /// why nothing is being captioned.
+    private var statusLine: String {
+        listening && AudioPermission.status == .denied
+            ? String(localized: "Audio access is off. Open System Settings and turn on Parakeet.") : status
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         signal(SIGPIPE, SIG_IGN)
@@ -32,9 +40,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem.menu = menu
         updateIcon()
         // `open Parakeet.app --args --rehearse-first-launch` replays what a new user sees.
-        let rehearse = CommandLine.arguments.contains("--rehearse-first-launch")
+        rehearse = CommandLine.arguments.contains("--rehearse-first-launch")
         if rehearse || !UserDefaults.standard.bool(forKey: "onboarded") { showOnboarding() }
-        engine = NemotronEngine(rehearseFirstLaunch: rehearse) { [weak self] event in self?.handle(event) }
+        startEngine()
+        SystemAudioTap.onOutputDeviceChange { [weak self] in self?.restartTap() }
         Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [captions] _ in
             captions.clearIfIdle(after: 6)
         }
@@ -52,6 +61,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let onboarding = Onboarding()
         let window = OnboardingWindow(onboarding)
         onboarding.onFinish = { [weak self] in self?.finishOnboarding() }
+        onboarding.onRetry = { [weak self] in self?.startEngine() }
         self.onboarding = onboarding
         onboardingWindow = window
         window.makeKeyAndOrderFront(nil)
@@ -74,13 +84,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case "captions off": if listening { stopListening() }
         default: break
         }
-        DistributedNotificationCenter.default().postNotificationName(Control.reply, object: status, userInfo: nil, deliverImmediately: true)
+        DistributedNotificationCenter.default().postNotificationName(Control.reply, object: statusLine, userInfo: nil, deliverImmediately: true)
     }
 
     // Rebuilt each time it opens so it always reflects current state.
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
-        menu.addItem(withTitle: status, action: nil, keyEquivalent: "")
+        menu.addItem(withTitle: statusLine, action: nil, keyEquivalent: "")
+        if engine == nil {
+            menu.addItem(withTitle: String(localized: "Try Again"), action: #selector(startEngine), keyEquivalent: "")
+        } else if listening, AudioPermission.status == .denied {
+            menu.addItem(withTitle: String(localized: "Open System Settings"), action: #selector(openAudioSettings), keyEquivalent: "")
+        }
         menu.addItem(.separator())
         let toggle = menu.addItem(withTitle: String(localized: "Captions"), action: #selector(toggleListening), keyEquivalent: "l")
         toggle.state = listening ? .on : .off
@@ -115,11 +130,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .final(let text):
             captions.lock(text)
         case .exited(let reason):
+            let reason = reason.isEmpty ? String(localized: "unknown error") : reason
             ready = false
             engine = nil
             stopListening()
-            status = String(localized: "Speech model stopped: \(reason.isEmpty ? String(localized: "unknown error") : reason)")
+            status = String(localized: "Speech model stopped: \(reason)")
+            onboarding?.model = .failed(reason)
         }
+        updateIcon()
+    }
+
+    /// Loads the speech model; runs again from "Try Again" after a failure.
+    @objc private func startEngine() {
+        guard engine == nil else { return }
+        status = String(localized: "Loading speech model…")
+        onboarding?.model = .waiting
+        engine = NemotronEngine(rehearseFirstLaunch: rehearse) { [weak self] event in self?.handle(event) }
         updateIcon()
     }
 
@@ -140,6 +166,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updateIcon()
     }
 
+    /// Rebuilds the tap on the new output device, which keeps captions going
+    /// when headphones are plugged in or disconnected.
+    private func restartTap() {
+        guard listening else { return }
+        stopListening()
+        startListening()
+    }
+
     private func stopListening() {
         tap.stop()
         listening = false
@@ -147,6 +181,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if ready { status = String(localized: "Off") }
         updateIcon()
     }
+
+    @objc private func openAudioSettings() { AudioPermission.openSettings() }
 
     @objc private func copyTranscript() {
         NSPasteboard.general.clearContents()

@@ -31,7 +31,8 @@ audio permission and downloads the speech model (~640 MB) from Hugging Face.
 ## How it works
 
 - `SystemAudioTap.swift` captures all system audio with a Core Audio process
-  tap and converts it to 16 kHz mono.
+  tap and converts it to 16 kHz mono. It's rebuilt whenever the output device
+  changes (headphones in or out), and it doesn't keep the Mac from sleeping.
 - `NemotronEngine.swift` streams it through NVIDIA
   [Nemotron 3.5 ASR](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b)
   (via [FluidAudio](https://github.com/FluidInference/FluidAudio)'s Core ML
@@ -95,4 +96,5 @@ installs can never update again.
 [FluidAudio](https://github.com/FluidInference/FluidAudio) (Apache-2.0),
 [Sparkle](https://github.com/sparkle-project/Sparkle) (MIT), and NVIDIA's
 Nemotron 3.5 ASR model ([OpenMDW-1.1](https://openmdw.ai/license/1-1/)),
-downloaded at first launch. Parakeet itself is MIT-licensed.
+downloaded at first launch. Parakeet itself is MIT-licensed. The license
+notices ship inside the app, in `Contents/Resources/Licenses`.

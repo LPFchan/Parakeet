@@ -21,6 +21,14 @@ mkdir -p "$app/Contents/MacOS" "$app/Contents/Frameworks" "$app/Contents/Resourc
 cp "$bin/Parakeet" "$app/Contents/MacOS/Parakeet"
 ditto "$bin/Sparkle.framework" "$app/Contents/Frameworks/Sparkle.framework"
 cp "$root/app/Resources/AppIcon.icns" "$app/Contents/Resources/AppIcon.icns"
+# License notices for Parakeet and the libraries built into it.
+licenses="$app/Contents/Resources/Licenses"
+checkouts="$root/app/.build/checkouts"
+mkdir -p "$licenses"
+cp "$root/LICENSE" "$licenses/Parakeet.txt"
+cp "$checkouts/FluidAudio/LICENSE" "$licenses/FluidAudio.txt"
+cp "$checkouts/FluidAudio/ThirdPartyLicenses/"* "$licenses/"
+cp "$checkouts/Sparkle/LICENSE" "$licenses/Sparkle.txt"
 # Translations: String Catalogs → <lang>.lproj/*.strings. English is the source,
 # but still needs its own folder so macOS counts it as a supported language.
 for catalog in Localizable InfoPlist; do

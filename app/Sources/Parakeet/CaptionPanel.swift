@@ -27,6 +27,7 @@ final class Captions {
         // Streaming models can deliver a sentence's full stop after the pause.
         let attaches = text.first.map { ".,?!。、？！".contains($0) } ?? false
         if attaches, !transcript.isEmpty { transcript[transcript.count - 1] += text } else { transcript.append(text) }
+        if transcript.count > 5000 { transcript.removeFirst() }  // hours of speech; the app runs for weeks
         // Japanese and Chinese don't put spaces between sentences (Korean does).
         let unspaced = locked.last?.unicodeScalars.first.map { (0x3000...0x9FFF).contains($0.value) } ?? false
         locked = locked.isEmpty ? text : locked + (attaches || unspaced ? "" : " ") + text
