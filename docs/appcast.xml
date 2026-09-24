@@ -11,7 +11,7 @@
       <sparkle:shortVersionString>1.1.2</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
       <sparkle:fullReleaseNotesLink>https://github.com/LPFchan/Parakeet/releases/tag/v1.1.2</sparkle:fullReleaseNotesLink>
-      <enclosure url="https://github.com/LPFchan/parakeet/releases/download/v1.1.2/Parakeet.dmg" type="application/octet-stream" sparkle:edSignature="QYotqDd815yLA8Wj8ygGTRe42AdSVujiHBb9qNoRiZoHnxDXAlBy3GM6JIAH1O8zNgrQkIAdSSao+X9WWffZCA==" length="11213637"/>
+      <enclosure url="https://github.com/LPFchan/Parakeet/releases/download/v1.1.2/Parakeet.dmg" type="application/octet-stream" sparkle:edSignature="QYotqDd815yLA8Wj8ygGTRe42AdSVujiHBb9qNoRiZoHnxDXAlBy3GM6JIAH1O8zNgrQkIAdSSao+X9WWffZCA==" length="11213637"/>
     </item>
     <item>
       <title>Version 1.1.1</title>
@@ -19,8 +19,8 @@
       <sparkle:version>19</sparkle:version>
       <sparkle:shortVersionString>1.1.1</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <sparkle:fullReleaseNotesLink>https://github.com/LPFchan/parakeet/releases/tag/v1.1.1</sparkle:fullReleaseNotesLink>
-      <enclosure url="https://github.com/LPFchan/parakeet/releases/download/v1.1.1/Parakeet.dmg" type="application/octet-stream" sparkle:edSignature="O5Hj8F3Vz1vResi/7S+/SIikG6KqPoo4ZytI3MOvHfSvLyRRJodR99wyC6Sn+rXYWDWpDpqaAWgv+cB7F0VvBA==" length="11213610"/>
+      <sparkle:fullReleaseNotesLink>https://github.com/LPFchan/Parakeet/releases/tag/v1.1.1</sparkle:fullReleaseNotesLink>
+      <enclosure url="https://github.com/LPFchan/Parakeet/releases/download/v1.1.1/Parakeet.dmg" type="application/octet-stream" sparkle:edSignature="O5Hj8F3Vz1vResi/7S+/SIikG6KqPoo4ZytI3MOvHfSvLyRRJodR99wyC6Sn+rXYWDWpDpqaAWgv+cB7F0VvBA==" length="11213610"/>
     </item>
     <item>
       <title>Version 1.1.0</title>
@@ -28,8 +28,8 @@
       <sparkle:version>16</sparkle:version>
       <sparkle:shortVersionString>1.1.0</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <sparkle:fullReleaseNotesLink>https://github.com/LPFchan/parakeet/releases/tag/v1.1.0</sparkle:fullReleaseNotesLink>
-      <enclosure url="https://github.com/LPFchan/parakeet/releases/download/v1.1.0/Parakeet.dmg" type="application/octet-stream" sparkle:edSignature="MnrWp2K65kkctW2F03Ezkb9AqzuDf1WqKTaRx84K9KJJVMcgotgwkr99hWqyMbidhnTwrcnuelUktElbr5IVBQ==" length="11213346"/>
+      <sparkle:fullReleaseNotesLink>https://github.com/LPFchan/Parakeet/releases/tag/v1.1.0</sparkle:fullReleaseNotesLink>
+      <enclosure url="https://github.com/LPFchan/Parakeet/releases/download/v1.1.0/Parakeet.dmg" type="application/octet-stream" sparkle:edSignature="MnrWp2K65kkctW2F03Ezkb9AqzuDf1WqKTaRx84K9KJJVMcgotgwkr99hWqyMbidhnTwrcnuelUktElbr5IVBQ==" length="11213346"/>
     </item>
     <item>
       <title>Version 1.0.0</title>
@@ -37,8 +37,8 @@
       <sparkle:version>10</sparkle:version>
       <sparkle:shortVersionString>1.0.0</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <sparkle:fullReleaseNotesLink>https://github.com/LPFchan/parakeet/releases/tag/v1.0.0</sparkle:fullReleaseNotesLink>
-      <enclosure url="https://github.com/LPFchan/parakeet/releases/download/v1.0.0/Parakeet.zip" type="application/octet-stream" sparkle:edSignature="V9Lh+Pu4fTYJoqTZBh6M4cAf1GAXGwfW08Ucv73+osdRK7SyghfQpnnjQaI5pRgWhe22PCCMUcI/fM+rFNwrDw==" length="9969197"/>
+      <sparkle:fullReleaseNotesLink>https://github.com/LPFchan/Parakeet/releases/tag/v1.0.0</sparkle:fullReleaseNotesLink>
+      <enclosure url="https://github.com/LPFchan/Parakeet/releases/download/v1.0.0/Parakeet.zip" type="application/octet-stream" sparkle:edSignature="V9Lh+Pu4fTYJoqTZBh6M4cAf1GAXGwfW08Ucv73+osdRK7SyghfQpnnjQaI5pRgWhe22PCCMUcI/fM+rFNwrDw==" length="9969197"/>
     </item>
   </channel>
 </rss>
