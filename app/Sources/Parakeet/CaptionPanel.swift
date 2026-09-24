@@ -1,5 +1,7 @@
 import AppKit
+import NaturalLanguage
 import SwiftUI
+import Translation
 
 /// One continuous run of text per burst of speech. New characters type in
 /// a few at a time instead of popping in, so the eye can follow them.
@@ -9,12 +11,22 @@ final class Captions {
     private(set) var locked = ""
     private(set) var partial = ""
     private(set) var revealed = 0
+    /// Finished sentences waiting for their translation; shown dim until it arrives.
+    private(set) var pending: [String] = []
     private var lastUpdate = Date()
     @ObservationIgnored private var ticker: Timer?
+    @ObservationIgnored private var requests: AsyncStream<String>.Continuation?
 
-    var isEmpty: Bool { locked.isEmpty && partial.isEmpty }
+    /// Language to translate captions into; nil shows them as heard.
+    var translateTo: Locale.Language? {
+        didSet { while let text = pending.first { pending.removeFirst(); show(text) } }
+    }
+    /// Drives `.translationTask`; the source language is detected per sentence.
+    var translation: TranslationSession.Configuration? { translateTo.map { .init(source: nil, target: $0) } }
+
+    var isEmpty: Bool { locked.isEmpty && partial.isEmpty && pending.isEmpty }
     private var target: Int { full.count }
-    private var full: String { locked.isEmpty || partial.isEmpty ? locked + partial : locked + " " + partial }
+    private var full: String { ([locked] + pending + [partial]).filter { !$0.isEmpty }.joined(separator: " ") }
 
     /// The typed-in part, split into locked (bright) and still-changing (dim).
     var visible: (locked: String, partial: String) {
@@ -28,6 +40,37 @@ final class Captions {
         let attaches = text.first.map { ".,?!。、？！".contains($0) } ?? false
         if attaches, !transcript.isEmpty { transcript[transcript.count - 1] += text } else { transcript.append(text) }
         if transcript.count > 5000 { transcript.removeFirst() }  // hours of speech; the app runs for weeks
+        partial = ""
+        if let translateTo, let requests, !Self.isWritten(in: translateTo, text) {
+            pending.append(text)
+            requests.yield(text)
+            changed()
+        } else {
+            show(text)
+        }
+    }
+
+    /// The sentences `lock` queued for translation, one at a time and in order.
+    func translationRequests() -> AsyncStream<String> {
+        requests?.finish()
+        let (stream, continuation) = AsyncStream.makeStream(of: String.self)
+        requests = continuation
+        return stream
+    }
+
+    func translated(_ original: String, into text: String) {
+        guard pending.first == original else { return }  // translation was switched off meanwhile
+        pending.removeFirst()
+        show(text)
+    }
+
+    private static func isWritten(in language: Locale.Language, _ text: String) -> Bool {
+        NLLanguageRecognizer.dominantLanguage(for: text)?.rawValue.split(separator: "-").first.map(String.init)
+            == language.languageCode?.identifier
+    }
+
+    private func show(_ text: String) {
+        let attaches = text.first.map { ".,?!。、？！".contains($0) } ?? false
         // Japanese and Chinese don't put spaces between sentences (Korean does).
         let unspaced = locked.last?.unicodeScalars.first.map { (0x3000...0x9FFF).contains($0.value) } ?? false
         locked = locked.isEmpty ? text : locked + (attaches || unspaced ? "" : " ") + text
@@ -40,7 +83,6 @@ final class Captions {
             revealed = max(0, revealed - locked.distance(from: locked.startIndex, to: wordStart))
             locked = String(locked[wordStart...])
         }
-        partial = ""
         changed()
     }
 
@@ -51,7 +93,7 @@ final class Captions {
 
     /// Fade out once nobody has spoken for a while.
     func clearIfIdle(after seconds: TimeInterval) {
-        if partial.isEmpty, !locked.isEmpty, Date().timeIntervalSince(lastUpdate) > seconds {
+        if partial.isEmpty, pending.isEmpty, !locked.isEmpty, Date().timeIntervalSince(lastUpdate) > seconds {
             locked = ""
             revealed = 0
         }
@@ -137,5 +179,12 @@ struct CaptionView: View {
             }
         }
         .animation(.easeOut(duration: 0.3), value: captions.isEmpty)
+        .translationTask(captions.translation) { session in
+            for await text in captions.translationRequests() {
+                // Untranslatable (e.g. its language pack isn't installed): show it as heard.
+                let result = try? await session.translate(text)
+                captions.translated(text, into: result?.targetText ?? text)
+            }
+        }
     }
 }
