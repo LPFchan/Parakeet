@@ -78,9 +78,14 @@ final class Captions {
 @Observable
 final class Translator {
     let output = Captions()
-    var target: Locale.Language? {
-        didSet { queue.removeAll(); draft = ""; output.clearIfIdle(after: 0) }
+    var target = UserDefaults.standard.string(forKey: "translateTo").map(Locale.Language.init(identifier:)) {
+        didSet {
+            UserDefaults.standard.set(target?.minimalIdentifier, forKey: "translateTo")
+            queue.removeAll(); draft = ""; output.clearIfIdle(after: 0)
+        }
     }
+    /// What Translation can translate into, by name.
+    private(set) var languages: [Locale.Language] = []
     /// The language being heard. Translation needs it spelled out: left to
     /// detect it, the framework stops to ask the user.
     private var source: Locale.Language?
@@ -91,6 +96,16 @@ final class Translator {
     @ObservationIgnored private var draft = ""
     @ObservationIgnored private var lastPiece = Date()
     @ObservationIgnored private var wake: AsyncStream<Void>.Continuation?
+
+    init() {
+        Task { @MainActor in
+            languages = await LanguageAvailability().supportedLanguages.sorted { Self.name($0) < Self.name($1) }
+        }
+    }
+
+    static func name(_ language: Locale.Language) -> String {
+        Locale.current.localizedString(forIdentifier: language.minimalIdentifier) ?? language.minimalIdentifier
+    }
 
     /// Drives `.translationTask`, which restarts `run` when either language changes.
     var configuration: TranslationSession.Configuration? { target.map { .init(source: source, target: $0) } }
@@ -155,7 +170,7 @@ final class Translator {
 /// A floating, draggable caption box that stays above
 /// other windows, including full-screen apps.
 final class CaptionPanel: NSPanel {
-    init(captions: Captions, translator: Translator) {
+    init(captions: Captions, translator: Translator, onClose: @escaping () -> Void, onCopy: @escaping () -> Void) {
         super.init(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         isFloatingPanel = true
         level = .statusBar
@@ -172,7 +187,7 @@ final class CaptionPanel: NSPanel {
         setFrame(.init(x: screen.midX - width / 2, y: screen.minY + 60, width: width, height: height), display: false)
         setFrameAutosaveName("Captions")  // remember where it was dragged to
 
-        let host = NSHostingView(rootView: CaptionView(captions: captions, translator: translator))
+        let host = NSHostingView(rootView: CaptionView(captions: captions, translator: translator, onClose: onClose, onCopy: onCopy))
         host.sizingOptions = []
         contentView = host
     }
@@ -183,6 +198,10 @@ final class CaptionPanel: NSPanel {
 struct CaptionView: View {
     let captions: Captions
     var translator: Translator?
+    /// The buttons show only when both are given (not in the welcome window's preview).
+    var onClose: (() -> Void)?
+    var onCopy: (() -> Void)?
+    @State private var hovering = false
 
     private var translation: Captions? { translator?.target == nil ? nil : translator?.output }
     private var isEmpty: Bool { captions.isEmpty && translation?.isEmpty ?? true }
@@ -191,15 +210,41 @@ struct CaptionView: View {
         VStack {
             Spacer(minLength: 0)
             if !isEmpty {
-                // Translating: the translation large on top, the original live below.
-                VStack(spacing: 6) {
-                    if let translation {
-                        CaptionText(captions: translation, size: 22, lines: 2, opacity: 1)
-                        CaptionText(captions: captions, size: 15, lines: 2, opacity: 0.7)
-                    } else {
-                        CaptionText(captions: captions, size: 22, lines: 3, opacity: 1)
+                HStack(alignment: .center, spacing: 14) {
+                    // Translating: the translation large on top, the original live below.
+                    VStack(spacing: 6) {
+                        if let translation {
+                            CaptionText(captions: translation, size: 22, lines: 2, opacity: 1)
+                            CaptionText(captions: captions, size: 15, lines: 2, opacity: 0.7)
+                        } else {
+                            CaptionText(captions: captions, size: 22, lines: 3, opacity: 1)
+                        }
+                    }
+                    if let onClose, let onCopy, let translator {
+                        VStack(spacing: 12) {
+                            GlyphButton("xmark", help: "Turn Captions Off", action: onClose)
+                            GlyphButton("doc.on.doc", help: "Copy Transcript", action: onCopy)
+                            Menu {
+                                Picker("Translate To", selection: Bindable(translator).target) {
+                                    Text("Off").tag(Locale.Language?.none)
+                                    ForEach(translator.languages, id: \.self) { Text(Translator.name($0)).tag(Optional($0)) }
+                                }
+                                .pickerStyle(.inline)
+                            } label: {
+                                Glyph("translate")
+                            }
+                            .menuStyle(.button)
+                            .buttonStyle(.plain)
+                            .menuIndicator(.hidden)
+                            .fixedSize()
+                            .help("Translate To")
+                        }
+                        // Only while the pointer is over the box; the space stays, so text doesn't reflow.
+                        .opacity(hovering ? 1 : 0)
+                        .animation(.easeOut(duration: 0.15), value: hovering)
                     }
                 }
+                .onHover { hovering = $0 }
                 .padding(.horizontal, 18)
                 .padding(.vertical, 12)
                 .background(.black.opacity(0.72), in: .rect(cornerRadius: 14))
@@ -219,6 +264,8 @@ private struct CaptionText: View {
     let lines: CGFloat
     let opacity: Double
     @State private var lift: CGFloat = 0
+    private var lineHeight: CGFloat { (size * 1.19).rounded() }  // SF and Korean; CJK sets tighter
+    private var fade: CGFloat { (lineHeight * 0.3).rounded() }
 
     var body: some View {
         let visible = captions.visible
@@ -236,8 +283,36 @@ private struct CaptionText: View {
                 withAnimation(.easeOut(duration: 0.25)) { lift = 0 }
             }
             .offset(y: lift)
-            .frame(height: (size * 1.32).rounded() * lines, alignment: .bottom)
+            // Exactly `lines` lines, plus a strip above them where the line
+            // scrolling out fades away; the lines themselves stay crisp.
+            .frame(height: lineHeight * lines + fade, alignment: .bottom)
             .clipped()
-            .mask(LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.3)], startPoint: .top, endPoint: .bottom))
+            .mask(LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: fade / (lineHeight * lines + fade))], startPoint: .top, endPoint: .bottom))
+    }
+}
+
+private struct Glyph: View {
+    let name: String
+    init(_ name: String) { self.name = name }
+
+    var body: some View {
+        Image(systemName: name)
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(.white.opacity(0.55))
+            .frame(width: 22, height: 22)
+            .contentShape(.rect)
+    }
+}
+
+private struct GlyphButton: View {
+    let name: String
+    let help: LocalizedStringKey
+    let action: () -> Void
+    init(_ name: String, help: LocalizedStringKey, action: @escaping () -> Void) { self.name = name; self.help = help; self.action = action }
+
+    var body: some View {
+        Button(action: action) { Glyph(name) }
+            .buttonStyle(.plain)
+            .help(help)
     }
 }

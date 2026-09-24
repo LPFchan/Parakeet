@@ -1,7 +1,6 @@
 import AppKit
 import ServiceManagement
 import Sparkle
-import Translation
 
 /// `Parakeet <command>` talks to the running app over distributed notifications.
 enum Control {
@@ -13,7 +12,9 @@ enum Control {
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let captions = Captions()
     private let translator = Translator()
-    private lazy var panel = CaptionPanel(captions: captions, translator: translator)
+    private lazy var panel = CaptionPanel(captions: captions, translator: translator,
+                                          onClose: { [weak self] in self?.stopListening() },
+                                          onCopy: { [weak self] in self?.copyTranscript() })
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let tap = SystemAudioTap()
     private lazy var updater = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: self)
@@ -24,7 +25,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var ready = false
     private var listening = false
     private var rehearse = false
-    private var translationLanguages: [Locale.Language] = []
 
     /// What the menu and `Parakeet status` show; a revoked permission explains
     /// why nothing is being captioned.
@@ -46,11 +46,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         rehearse = CommandLine.arguments.contains("--rehearse-first-launch")
         if rehearse || !UserDefaults.standard.bool(forKey: "onboarded") { showOnboarding() }
         startEngine()
-        translator.target = UserDefaults.standard.string(forKey: "translateTo").map(Locale.Language.init(identifier:))
-        Task {
-            let languages = await LanguageAvailability().supportedLanguages
-            translationLanguages = languages.sorted { name($0) < name($1) }
-        }
         SystemAudioTap.onOutputDeviceChange { [weak self] in self?.restartTap() }
         Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [captions, translator] _ in
             captions.clearIfIdle(after: 6)
@@ -113,8 +108,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let copy = menu.addItem(withTitle: String(localized: "Copy Transcript"), action: #selector(copyTranscript), keyEquivalent: "")
         copy.isEnabled = !captions.transcript.isEmpty
         let translate = NSMenu()
-        for language in [nil] + translationLanguages.map(Optional.some) {
-            let item = translate.addItem(withTitle: language.map(name) ?? String(localized: "Off"), action: #selector(translateTo(_:)), keyEquivalent: "")
+        for language in [nil] + translator.languages.map(Optional.some) {
+            let item = translate.addItem(withTitle: language.map(Translator.name) ?? String(localized: "Off"), action: #selector(translateTo(_:)), keyEquivalent: "")
             item.representedObject = language?.minimalIdentifier
             item.state = language?.minimalIdentifier == translator.target?.minimalIdentifier ? .on : .off
         }
@@ -204,13 +199,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func translateTo(_ item: NSMenuItem) {
-        let identifier = item.representedObject as? String
-        UserDefaults.standard.set(identifier, forKey: "translateTo")
-        translator.target = identifier.map(Locale.Language.init(identifier:))
-    }
-
-    private func name(_ language: Locale.Language) -> String {
-        Locale.current.localizedString(forIdentifier: language.minimalIdentifier) ?? language.minimalIdentifier
+        translator.target = (item.representedObject as? String).map(Locale.Language.init(identifier:))
     }
 
     @objc private func openAudioSettings() { AudioPermission.openSettings() }
