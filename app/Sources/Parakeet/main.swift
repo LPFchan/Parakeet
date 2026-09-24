@@ -145,7 +145,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             captions.update(text)
         case .final(let text):
             captions.lock(text)
-            translator.translate(text)
+            translator.translate(text, ends: true)
+        case .fragment(let text):
+            captions.lock(text)
+            translator.translate(text, ends: false)
         case .exited(let reason):
             let reason = reason.isEmpty ? String(localized: "unknown error") : reason
             ready = false
@@ -294,6 +297,7 @@ if args.count == 2, args[0] == "--bench" {
                 exit(0)
             }
         case .final(let text): print(t, "final:", text)
+        case .fragment(let text): print(t, "fragment:", text)
         case .partial(let text): print(t, "  ~", text)
         case .exited(let reason): print("exited:", reason); exit(1)
         }

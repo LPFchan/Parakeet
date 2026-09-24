@@ -1,7 +1,9 @@
 import FluidAudio
 import Foundation
 
-enum EngineEvent { case downloading(Double), preparing, ready, partial(String), final(String), exited(String) }
+/// `final` ends a sentence (its full stop, or a pause); `fragment` is locked
+/// text cut from a sentence that ran long and is still going.
+enum EngineEvent { case downloading(Double), preparing, ready, partial(String), final(String), fragment(String), exited(String) }
 
 /// NVIDIA Nemotron 3.5 ASR (cache-aware streaming, ~40 languages detected
 /// automatically) running on the Neural Engine via FluidAudio. Each 560 ms
@@ -89,10 +91,12 @@ final class NemotronEngine {
             // any word (~5 s), so translation isn't left waiting.
             let tail = all.dropFirst(committed)
             waited = tail.allSatisfy(\.isWhitespace) ? 0 : waited + 1
-            if let end = Self.lastBreak(in: tail, at: ".?!。？！")
+            let sentenceEnd = Self.lastBreak(in: tail, at: ".?!。？！")
+            if let end = sentenceEnd
                 ?? (waited >= 5 ? Self.lastBreak(in: tail, at: ",;:、，") : nil)
                 ?? (waited >= 9 ? Self.lastBreak(in: tail, at: " ") : nil) {
-                emit(.final(tail[..<end].trimmingCharacters(in: .whitespaces)))
+                let text = tail[..<end].trimmingCharacters(in: .whitespaces)
+                emit(sentenceEnd != nil ? .final(text) : .fragment(text))
                 committed += tail.distance(from: tail.startIndex, to: end)
                 waited = 0
             }

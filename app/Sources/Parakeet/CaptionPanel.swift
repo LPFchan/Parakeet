@@ -79,20 +79,24 @@ final class Captions {
 final class Translator {
     let output = Captions()
     var target: Locale.Language? {
-        didSet { queue.removeAll(); output.clearIfIdle(after: 0) }
+        didSet { queue.removeAll(); draft = ""; output.clearIfIdle(after: 0) }
     }
     /// The language being heard. Translation needs it spelled out: left to
     /// detect it, the framework stops to ask the user.
     private var source: Locale.Language?
-    @ObservationIgnored private var queue: [String] = []
+    @ObservationIgnored private var queue: [(text: String, ends: Bool)] = []
+    /// The unfinished sentence so far. A piece cut from it mid-sentence
+    /// translates badly on its own, so each new piece re-translates all of it:
+    /// shown dim until the sentence ends, then locked.
+    @ObservationIgnored private var draft = ""
     @ObservationIgnored private var wake: AsyncStream<Void>.Continuation?
 
     /// Drives `.translationTask`, which restarts `run` when either language changes.
     var configuration: TranslationSession.Configuration? { target.map { .init(source: source, target: $0) } }
 
-    func translate(_ text: String) {
+    func translate(_ text: String, ends: Bool) {
         guard target != nil else { return }
-        queue.append(text)
+        queue.append((text, ends))
         wake?.yield()
     }
 
@@ -103,7 +107,8 @@ final class Translator {
         self.wake = wake
         wake.yield()  // anything queued while the session was starting
         for await _ in signals {
-            while let text = queue.first {
+            while let (piece, ends) = queue.first {
+                let text = draft.isEmpty ? piece : draft + " " + piece
                 let heard = language(of: text)
                 if let heard, heard != target?.languageCode, heard != source?.languageCode {
                     source = Locale.Language(languageCode: heard)  // a session for the new language picks it up
@@ -114,7 +119,14 @@ final class Translator {
                 let result = translate ? try? await session.translate(text) : nil
                 if Task.isCancelled { return }  // keep it queued for the next session
                 queue.removeFirst()
-                output.lock(result?.targetText ?? text)
+                // Ends the sentence, or it has run on for long enough (no punctuation at all).
+                if ends || text.count > 400 {
+                    draft = ""
+                    output.lock(result?.targetText ?? text)
+                } else {
+                    draft = text
+                    output.update(result?.targetText ?? text)
+                }
             }
         }
     }
