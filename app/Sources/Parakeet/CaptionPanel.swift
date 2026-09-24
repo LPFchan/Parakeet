@@ -225,9 +225,12 @@ struct CaptionView: View {
                             GlyphButton("xmark", help: "Turn Captions Off", action: onClose)
                             GlyphButton("doc.on.doc", help: "Copy Transcript", action: onCopy)
                             Menu {
-                                Picker("Translate To", selection: Bindable(translator).target) {
-                                    Text("Off").tag(Locale.Language?.none)
-                                    ForEach(translator.languages, id: \.self) { Text(Translator.name($0)).tag(Optional($0)) }
+                                // By short code: the list has "ko-KR" where the saved choice is "ko".
+                                Picker("Translate To", selection: Binding(
+                                    get: { translator.target?.minimalIdentifier },
+                                    set: { translator.target = $0.map(Locale.Language.init(identifier:)) })) {
+                                    Text("Off").tag(String?.none)
+                                    ForEach(translator.languages, id: \.self) { Text(Translator.name($0)).tag(Optional($0.minimalIdentifier)) }
                                 }
                                 .pickerStyle(.inline)
                             } label: {
