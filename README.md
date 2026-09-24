@@ -37,8 +37,11 @@ audio permission and downloads the speech model (~640 MB) from Hugging Face.
   [Nemotron 3.5 ASR](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b)
   (via [FluidAudio](https://github.com/FluidInference/FluidAudio)'s Core ML
   build). Each 0.56 s of sound is processed once and words are never
-  rewritten, so it uses ~5–10% of one CPU core. Text locks in after ~1 s
+  rewritten, so it uses ~10% of one CPU core. Text locks in after ~1 s
   without new words. When nothing is playing, the model isn't run at all.
+  Measured on an M2 with [macmon](https://github.com/vladkens/macmon): the
+  speech model draws about 0.12 W while captioning (~40 mW CPU, ~80 mW
+  Neural Engine), and Parakeet idles at ~1 mW when nothing is playing.
 - `CaptionPanel.swift` draws the captions. Only a scroll offset is animated;
   animating the text itself cost ~90% CPU.
 
