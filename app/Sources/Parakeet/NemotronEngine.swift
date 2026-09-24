@@ -1,8 +1,9 @@
 import FluidAudio
 import Foundation
 
-/// `final` ends a sentence (its full stop, or a pause); `fragment` is locked
-/// text cut from a sentence that ran long and is still going.
+/// Locked text is `final` when it ends a sentence (with its full stop), and a
+/// `fragment` when the sentence may go on: cut because it ran long, or at a
+/// pause, which speakers also take mid-sentence.
 enum EngineEvent { case downloading(Double), preparing, ready, partial(String), final(String), fragment(String), exited(String) }
 
 /// NVIDIA Nemotron 3.5 ASR (cache-aware streaming, ~40 languages detected
@@ -91,12 +92,10 @@ final class NemotronEngine {
             // any word (~5 s), so translation isn't left waiting.
             let tail = all.dropFirst(committed)
             waited = tail.allSatisfy(\.isWhitespace) ? 0 : waited + 1
-            let sentenceEnd = Self.lastBreak(in: tail, at: ".?!。？！")
-            if let end = sentenceEnd
+            if let end = Self.lastBreak(in: tail, at: ".?!。？！")
                 ?? (waited >= 5 ? Self.lastBreak(in: tail, at: ",;:、，") : nil)
                 ?? (waited >= 9 ? Self.lastBreak(in: tail, at: " ") : nil) {
-                let text = tail[..<end].trimmingCharacters(in: .whitespaces)
-                emit(sentenceEnd != nil ? .final(text) : .fragment(text))
+                emit(Self.locked(tail[..<end].trimmingCharacters(in: .whitespaces)))
                 committed += tail.distance(from: tail.startIndex, to: end)
                 waited = 0
             }
@@ -108,12 +107,16 @@ final class NemotronEngine {
             } else {
                 quietChunks += 1
                 if !shown.isEmpty, quietChunks >= Self.pauseChunks {
-                    emit(.final(shown))
+                    emit(Self.locked(shown))
                     committed = all.count
                     shown = ""
                 }
             }
         }
+    }
+
+    private static func locked(_ text: String) -> EngineEvent {
+        text.last.map { ".?!。？！".contains($0) } == true ? .final(text) : .fragment(text)
     }
 
     /// Just past the last of `marks` that ends a finished word: followed by a

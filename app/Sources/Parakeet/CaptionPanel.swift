@@ -89,6 +89,7 @@ final class Translator {
     /// translates badly on its own, so each new piece re-translates all of it:
     /// shown dim until the sentence ends, then locked.
     @ObservationIgnored private var draft = ""
+    @ObservationIgnored private var lastPiece = Date()
     @ObservationIgnored private var wake: AsyncStream<Void>.Continuation?
 
     /// Drives `.translationTask`, which restarts `run` when either language changes.
@@ -119,6 +120,7 @@ final class Translator {
                 let result = translate ? try? await session.translate(text) : nil
                 if Task.isCancelled { return }  // keep it queued for the next session
                 queue.removeFirst()
+                lastPiece = .now
                 // Ends the sentence, or it has run on for long enough (no punctuation at all).
                 if ends || text.count > 400 {
                     draft = ""
@@ -129,6 +131,14 @@ final class Translator {
                 }
             }
         }
+    }
+
+    /// A sentence that stopped without its full stop: lock its draft once
+    /// nothing more has come for a while.
+    func settle(after seconds: TimeInterval) {
+        guard !draft.isEmpty, queue.isEmpty, Date().timeIntervalSince(lastPiece) > seconds else { return }
+        draft = ""
+        output.lock(output.partial)
     }
 
     /// Short fragments are ambiguous, so this leans toward the language already

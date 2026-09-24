@@ -54,6 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         SystemAudioTap.onOutputDeviceChange { [weak self] in self?.restartTap() }
         Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [captions, translator] _ in
             captions.clearIfIdle(after: 6)
+            if captions.partial.isEmpty { translator.settle(after: 2) }  // nobody mid-sentence
             translator.output.clearIfIdle(after: 6)
         }
         DistributedNotificationCenter.default().addObserver(forName: Control.command, object: nil, queue: .main) { [weak self] note in
