@@ -2,19 +2,24 @@
 
 Live captions for everything your Mac plays: videos, calls, podcasts. Korean,
 Japanese, English and about 30 more languages, detected on their own. Speech
-recognition runs entirely on your Mac's Neural Engine; no audio or text
+recognition runs entirely on your Mac's Neural Engine, and captions can be
+translated into about 20 languages, on your Mac too; no audio or text
 leaves it.
 
 **[Download](https://github.com/LPFchan/Parakeet/releases/latest/download/Parakeet.dmg)** · Apple silicon, macOS 15+
 
-![Parakeet captioning a video in QuickTime Player](.github/screenshot.jpg)
+![Parakeet captioning a video in QuickTime Player and translating it into Korean](.github/screenshot.jpg)
 
 ## Using it
 
 - Captions appear in a floating box whenever something speaks. Drag it
   anywhere; it remembers where. New words type in and scroll up line by line.
+  Hovering over it shows buttons to turn captions off, copy the transcript,
+  and pick a language to translate into.
+- With a language picked, the translation shows large and the original
+  small underneath. macOS asks once to download each language it needs.
 - The menu bar icon has a Captions on/off switch (⌘L), Copy Transcript,
-  Open at Login and Check for Updates. It checks for updates on every launch
+  Translate To, Open at Login and Check for Updates. It checks for updates on every launch
   (and daily while running) and offers to install them.
 - The same switch works from a terminal:
 
@@ -37,13 +42,18 @@ audio permission and downloads the speech model (~640 MB) from Hugging Face.
   [Nemotron 3.5 ASR](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b)
   (via [FluidAudio](https://github.com/FluidInference/FluidAudio)'s Core ML
   build). Each 0.56 s of sound is processed once and words are never
-  rewritten, so it uses ~10% of one CPU core. Text locks in after ~1 s
-  without new words. When nothing is playing, the model isn't run at all.
+  rewritten, so it uses ~10% of one CPU core. For the same reason a sentence
+  locks in as soon as its full stop appears; one that runs on locks at a
+  comma (~3 s) or any word (~5 s). When nothing is playing, the model isn't
+  run at all.
   Measured on an M2 with [macmon](https://github.com/vladkens/macmon): the
   speech model draws about 0.12 W while captioning (~40 mW CPU, ~80 mW
   Neural Engine), and Parakeet idles at ~1 mW when nothing is playing.
 - `CaptionPanel.swift` draws the captions. Only a scroll offset is animated;
-  animating the text itself cost ~90% CPU.
+  animating the text itself cost ~90% CPU. Its `Translator` hands locked text
+  to Apple's Translation framework, naming the source language itself
+  (`NaturalLanguage` detects it) so macOS doesn't stop to ask. Pieces of an
+  unfinished sentence are re-translated together, shown dim until it ends.
 
 ## Development
 
