@@ -57,6 +57,7 @@ final class NemotronEngine {
         var committed = 0   // characters of the running transcript already locked in
         var shown = ""
         var quietChunks = 0
+        var waited = 0      // chunks the unlocked text has been waiting
 
         while !Task.isCancelled {
             pending += lock.withLock { () -> [Float] in
@@ -82,13 +83,18 @@ final class NemotronEngine {
 
             // Tokens are never revised, so everything past `committed` is simply new.
             let all = await asr.getPartialTranscript()
-            // For the same reason, a sentence the next one has already started
-            // after is finished: lock it now rather than waiting for a pause,
-            // which continuous speech may never have.
+            // For the same reason, every finished word is final. Lock at the end
+            // of a sentence rather than waiting for a pause, which continuous
+            // speech may never have; if one runs long, at a comma (~3 s) or
+            // any word (~5 s), so translation isn't left waiting.
             let tail = all.dropFirst(committed)
-            if let end = Self.lastSentenceEnd(in: tail) {
+            waited = tail.allSatisfy(\.isWhitespace) ? 0 : waited + 1
+            if let end = Self.lastBreak(in: tail, at: ".?!。？！")
+                ?? (waited >= 5 ? Self.lastBreak(in: tail, at: ",;:、，") : nil)
+                ?? (waited >= 9 ? Self.lastBreak(in: tail, at: " ") : nil) {
                 emit(.final(tail[..<end].trimmingCharacters(in: .whitespaces)))
                 committed += tail.distance(from: tail.startIndex, to: end)
+                waited = 0
             }
             let now = String(all.dropFirst(committed)).trimmingCharacters(in: .whitespaces)
             if now != shown {
@@ -106,18 +112,18 @@ final class NemotronEngine {
         }
     }
 
-    /// Just past the last sentence-ending mark that has more text after it:
-    /// a space for Latin script ("fast. The", not "3.5"), anything for CJK marks.
-    private static func lastSentenceEnd(in text: Substring) -> String.Index? {
-        var end: String.Index?
-        var i = text.startIndex
-        while i < text.endIndex {
-            let next = text.index(after: i)
-            if next < text.endIndex, "。？！".contains(text[i]) || (".?!".contains(text[i]) && text[next] == " ") {
-                end = next
-            }
-            i = next
+    /// Just past the last of `marks` that ends a finished word: followed by a
+    /// space ("fast. The", not "3.5"), a sentence end right after a letter,
+    /// or any CJK mark. A space counts once the next word has begun.
+    private static func lastBreak(in text: Substring, at marks: String) -> String.Index? {
+        for mark in text.indices.reversed() where marks.contains(text[mark]) {
+            let after = text.index(after: mark)
+            let next = after < text.endIndex ? text[after] : nil
+            let c = text[mark]
+            let ends = c == " " ? next != nil
+                : !c.isASCII || next == " " || (next == nil && ".?!".contains(c) && text[..<mark].last?.isLetter == true)
+            if ends { return after }
         }
-        return end
+        return nil
     }
 }

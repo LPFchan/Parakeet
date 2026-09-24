@@ -12,7 +12,8 @@ enum Control {
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let captions = Captions()
-    private lazy var panel = CaptionPanel(captions: captions)
+    private let translator = Translator()
+    private lazy var panel = CaptionPanel(captions: captions, translator: translator)
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let tap = SystemAudioTap()
     private lazy var updater = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: self)
@@ -45,14 +46,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         rehearse = CommandLine.arguments.contains("--rehearse-first-launch")
         if rehearse || !UserDefaults.standard.bool(forKey: "onboarded") { showOnboarding() }
         startEngine()
-        captions.translateTo = UserDefaults.standard.string(forKey: "translateTo").map(Locale.Language.init(identifier:))
+        translator.target = UserDefaults.standard.string(forKey: "translateTo").map(Locale.Language.init(identifier:))
         Task {
             let languages = await LanguageAvailability().supportedLanguages
             translationLanguages = languages.sorted { name($0) < name($1) }
         }
         SystemAudioTap.onOutputDeviceChange { [weak self] in self?.restartTap() }
-        Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [captions] _ in
+        Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [captions, translator] _ in
             captions.clearIfIdle(after: 6)
+            translator.output.clearIfIdle(after: 6)
         }
         DistributedNotificationCenter.default().addObserver(forName: Control.command, object: nil, queue: .main) { [weak self] note in
             self?.run(command: note.object as? String ?? "")
@@ -113,7 +115,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         for language in [nil] + translationLanguages.map(Optional.some) {
             let item = translate.addItem(withTitle: language.map(name) ?? String(localized: "Off"), action: #selector(translateTo(_:)), keyEquivalent: "")
             item.representedObject = language?.minimalIdentifier
-            item.state = language?.minimalIdentifier == captions.translateTo?.minimalIdentifier ? .on : .off
+            item.state = language?.minimalIdentifier == translator.target?.minimalIdentifier ? .on : .off
         }
         menu.setSubmenu(translate, for: menu.addItem(withTitle: String(localized: "Translate To"), action: nil, keyEquivalent: ""))
         menu.addItem(.separator())
@@ -143,6 +145,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             captions.update(text)
         case .final(let text):
             captions.lock(text)
+            translator.translate(text)
         case .exited(let reason):
             let reason = reason.isEmpty ? String(localized: "unknown error") : reason
             ready = false
@@ -199,7 +202,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func translateTo(_ item: NSMenuItem) {
         let identifier = item.representedObject as? String
         UserDefaults.standard.set(identifier, forKey: "translateTo")
-        captions.translateTo = identifier.map(Locale.Language.init(identifier:))
+        translator.target = identifier.map(Locale.Language.init(identifier:))
     }
 
     private func name(_ language: Locale.Language) -> String {
