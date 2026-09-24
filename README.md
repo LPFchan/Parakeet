@@ -88,7 +88,11 @@ with the background from `Packaging/dmg-background.html`; re-render it with
 [Sparkle](https://sparkle-project.org) update feed served by GitHub Pages at
 `parakeet.lost.plus` (a DNS-only Cloudflare CNAME to `lpfchan.github.io`, so
 GitHub can issue its HTTPS certificate; the feed URL doesn't depend on the
-repo's name). The site root just redirects here.
+repo's name). The site root just redirects here. Keep the repo name
+lowercase, though: 1.0.0–1.1.1 read their feed from
+`lpfchan.github.io/parakeet/appcast.xml`, which GitHub only redirects to
+`parakeet.lost.plus` while the name matches exactly (Pages paths are
+case-sensitive).
 Version = the tag; build number = commit count.
 
 It needs three repository secrets:
