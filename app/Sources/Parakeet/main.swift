@@ -48,9 +48,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         startEngine()
         SystemAudioTap.onOutputDeviceChange { [weak self] in self?.restartTap() }
         Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [captions, translator] _ in
-            captions.clearIfIdle(after: 6)
             if captions.partial.isEmpty { translator.settle(after: 2) }  // nobody mid-sentence
-            translator.output.clearIfIdle(after: 6)
+            // Fade out once nobody has spoken for a while; the original and its
+            // translation go together, though the translation arrives later.
+            let shown = translator.target == nil ? [captions] : [captions, translator.output]
+            if shown.allSatisfy({ $0.idle > 6 }) { shown.forEach { $0.clear() } }
         }
         DistributedNotificationCenter.default().addObserver(forName: Control.command, object: nil, queue: .main) { [weak self] note in
             self?.run(command: note.object as? String ?? "")

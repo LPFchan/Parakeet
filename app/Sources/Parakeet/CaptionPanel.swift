@@ -51,12 +51,14 @@ final class Captions {
         changed()
     }
 
-    /// Fade out once nobody has spoken for a while.
-    func clearIfIdle(after seconds: TimeInterval) {
-        if partial.isEmpty, !locked.isEmpty, Date().timeIntervalSince(lastUpdate) > seconds {
-            locked = ""
-            revealed = 0
-        }
+    /// Seconds since the text last changed, while nothing more is on its way.
+    var idle: TimeInterval { partial.isEmpty ? Date().timeIntervalSince(lastUpdate) : 0 }
+
+    func clear() {
+        guard !isEmpty else { return }
+        locked = ""
+        partial = ""
+        revealed = 0
     }
 
     private func changed() {
@@ -81,7 +83,7 @@ final class Translator {
     var target = UserDefaults.standard.string(forKey: "translateTo").map(Locale.Language.init(identifier:)) {
         didSet {
             UserDefaults.standard.set(target?.minimalIdentifier, forKey: "translateTo")
-            queue.removeAll(); draft = ""; output.clearIfIdle(after: 0)
+            queue.removeAll(); draft = ""; output.clear()
         }
     }
     /// What Translation can translate into, by name.
