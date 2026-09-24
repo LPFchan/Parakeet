@@ -82,6 +82,14 @@ final class NemotronEngine {
 
             // Tokens are never revised, so everything past `committed` is simply new.
             let all = await asr.getPartialTranscript()
+            // For the same reason, a sentence the next one has already started
+            // after is finished: lock it now rather than waiting for a pause,
+            // which continuous speech may never have.
+            let tail = all.dropFirst(committed)
+            if let end = Self.lastSentenceEnd(in: tail) {
+                emit(.final(tail[..<end].trimmingCharacters(in: .whitespaces)))
+                committed += tail.distance(from: tail.startIndex, to: end)
+            }
             let now = String(all.dropFirst(committed)).trimmingCharacters(in: .whitespaces)
             if now != shown {
                 shown = now
@@ -96,5 +104,20 @@ final class NemotronEngine {
                 }
             }
         }
+    }
+
+    /// Just past the last sentence-ending mark that has more text after it:
+    /// a space for Latin script ("fast. The", not "3.5"), anything for CJK marks.
+    private static func lastSentenceEnd(in text: Substring) -> String.Index? {
+        var end: String.Index?
+        var i = text.startIndex
+        while i < text.endIndex {
+            let next = text.index(after: i)
+            if next < text.endIndex, "。？！".contains(text[i]) || (".?!".contains(text[i]) && text[next] == " ") {
+                end = next
+            }
+            i = next
+        }
+        return end
     }
 }
