@@ -7,6 +7,8 @@ leaves it.
 
 **[Download](https://github.com/LPFchan/Parakeet/releases/latest/download/Parakeet.dmg)** · Apple silicon, macOS 15+
 
+![Parakeet captioning a video in QuickTime Player](.github/screenshot.jpg)
+
 ## Using it
 
 - Captions appear in a floating box whenever something speaks. Drag it
