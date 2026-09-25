@@ -29,7 +29,9 @@ final class UltraEngine: Engine {
                     progressHandler: { emit(.downloading($0.fractionCompleted)) })
                 emit(.preparing)
                 if rehearseFirstLaunch { try await Task.sleep(for: .seconds(10)) }
-                let asr = SlidingWindowAsrManager(config: .default)
+                // 2+6+2 s windows: chunks confirm twice as often as the 11 s
+                // default while each decode still sees 10 s of audio.
+                let asr = SlidingWindowAsrManager(config: SlidingWindowAsrConfig(chunkSeconds: 6.0))
                 try await asr.loadModels(models)
                 try await asr.startStreaming(source: .system)
                 feed.asr = asr
@@ -38,14 +40,19 @@ final class UltraEngine: Engine {
                 var shown = ""
                 for await update in await asr.transcriptionUpdates {
                     if Task.isCancelled { return }
-                    let text = update.text.trimmingCharacters(in: .whitespaces)
                     if update.isConfirmed {
+                        let text = update.text.trimmingCharacters(in: .whitespaces)
                         shown = ""
                         guard !text.isEmpty else { continue }
                         emit(Self.locked(text))
-                    } else if text != shown {
-                        shown = text
-                        emit(.partial(text))
+                    } else {
+                        // A window's text is only its own few seconds; the running
+                        // unconfirmed tail reads as one continuous partial.
+                        let tail = await asr.volatileTranscript.trimmingCharacters(in: .whitespaces)
+                        if tail != shown {
+                            shown = tail
+                            emit(.partial(tail))
+                        }
                     }
                 }
             } catch is CancellationError {
