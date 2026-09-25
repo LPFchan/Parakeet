@@ -6,9 +6,9 @@ recognition runs entirely on your Mac's Neural Engine, and captions can be
 translated into about 20 languages, on your Mac too; no audio or text
 leaves it.
 
-**[Download](https://github.com/LPFchan/Parakeet/releases/latest/download/Parakeet.dmg)** · Apple silicon, macOS 15+
+**[Download](https://github.com/LPFchan/Parakeet/releases/latest/download/Parakeet.dmg)** · [parakeet.lost.plus](https://parakeet.lost.plus) · Apple silicon, macOS 15+
 
-![Parakeet captioning a video in QuickTime Player and translating it into Korean](.github/screenshot.jpg)
+![Parakeet captioning a video in QuickTime Player and translating it into Korean](docs/screenshot.jpg)
 
 ## Using it
 
@@ -90,7 +90,7 @@ with the background from `Packaging/dmg-background.html`; re-render it with
 [Sparkle](https://sparkle-project.org) update feed served by GitHub Pages at
 `parakeet.lost.plus` (a DNS-only Cloudflare CNAME to `lpfchan.github.io`, so
 GitHub can issue its HTTPS certificate; the feed URL doesn't depend on the
-repo's name). The site root just redirects here. Keep the repo name
+repo's name). The same site serves Parakeet's homepage, `docs/index.html`. Keep the repo name
 lowercase, though: 1.0.0–1.1.1 read their feed from
 `lpfchan.github.io/parakeet/appcast.xml`, which GitHub only redirects to
 `parakeet.lost.plus` while the name matches exactly (Pages paths are
