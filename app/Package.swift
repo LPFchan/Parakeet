@@ -5,7 +5,7 @@ let package = Package(
     name: "Parakeet",
     platforms: [.macOS(.v15)],
     dependencies: [
-        .package(url: "https://github.com/FluidInference/FluidAudio", exact: "0.16.1"),
+        .package(url: "https://github.com/FluidInference/FluidAudio", exact: "0.17.4"),
         .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0"),
     ],
     targets: [

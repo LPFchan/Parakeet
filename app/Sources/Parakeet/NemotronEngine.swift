@@ -6,11 +6,23 @@ import Foundation
 /// pause, which speakers also take mid-sentence.
 enum EngineEvent { case downloading(Double), preparing, ready, partial(String), final(String), fragment(String), exited(String) }
 
+/// Anything that turns 16 kHz mono float32 PCM into caption events.
+protocol Engine {
+    func send(_ pcm: Data)
+    func stop()
+}
+
+extension Engine {
+    /// Tells the engine no more audio is coming, so anything still buffered
+    /// is transcribed too. Default: nothing extra to do.
+    func finish() async {}
+}
+
 /// NVIDIA Nemotron 3.5 ASR (cache-aware streaming, ~40 languages detected
 /// automatically) running on the Neural Engine via FluidAudio. Each 560 ms
 /// chunk is encoded once and emitted tokens are never revised, so there is no
 /// re-transcription loop at all.
-final class NemotronEngine {
+final class NemotronEngine: Engine {
     private static let chunk = 8_960     // 560 ms
     private static let pauseChunks = 2   // chunks without new tokens that end an utterance
 

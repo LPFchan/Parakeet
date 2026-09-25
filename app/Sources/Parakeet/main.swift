@@ -9,6 +9,32 @@ enum Control {
     static let usage = "usage: Parakeet status | captions on|off"
 }
 
+/// Which speech model to run: the default Nemotron streaming ASR, or
+/// Parakeet Ultra (--engine ultra) for side-by-side debugging.
+enum EngineKind: String {
+    case nemotron, ultra
+
+    static let current: EngineKind = {
+        let args = Array(CommandLine.arguments.dropFirst())
+        guard args.count >= 2, args[0] == "--engine" else { return .nemotron }
+        return EngineKind(rawValue: args[1]) ?? .nemotron
+    }()
+
+    var modelName: String {
+        switch self {
+        case .nemotron: return "Nemotron 3.5"
+        case .ultra: return "Parakeet Ultra"
+        }
+    }
+
+    func make(rehearseFirstLaunch: Bool, onEvent: @escaping (EngineEvent) -> Void) -> Engine {
+        switch self {
+        case .nemotron: return NemotronEngine(rehearseFirstLaunch: rehearseFirstLaunch, onEvent: onEvent)
+        case .ultra: return UltraEngine(rehearseFirstLaunch: rehearseFirstLaunch, onEvent: onEvent)
+        }
+    }
+}
+
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let captions = Captions()
     private let translator = Translator()
@@ -18,7 +44,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let tap = SystemAudioTap()
     private lazy var updater = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: self)
-    private var engine: NemotronEngine?
+    private var engine: Engine?
     private var onboarding: Onboarding?   // set while the first-launch window is open
     private var onboardingWindow: OnboardingWindow?
     private var status = String(localized: "Loading speech model…")
@@ -31,6 +57,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusLine: String {
         listening && AudioPermission.status == .denied
             ? String(localized: "Audio access is off. Open System Settings and turn on Parakeet.") : status
+    }
+
+    private var engineTag: String {
+        EngineKind.current == .ultra ? " [Parakeet Ultra]" : ""
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -97,7 +127,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // Rebuilt each time it opens so it always reflects current state.
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
-        menu.addItem(withTitle: statusLine, action: nil, keyEquivalent: "")
+        menu.addItem(withTitle: statusLine + engineTag, action: nil, keyEquivalent: "")
         if engine == nil {
             menu.addItem(withTitle: String(localized: "Try Again"), action: #selector(startEngine), keyEquivalent: "")
         } else if listening, AudioPermission.status == .denied {
@@ -162,7 +192,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard engine == nil else { return }
         status = String(localized: "Loading speech model…")
         onboarding?.model = .waiting
-        engine = NemotronEngine(rehearseFirstLaunch: rehearse) { [weak self] event in self?.handle(event) }
+        engine = EngineKind.current.make(rehearseFirstLaunch: rehearse) { [weak self] event in self?.handle(event) }
         updateIcon()
     }
 
@@ -251,9 +281,12 @@ extension AppDelegate: SPUStandardUserDriverDelegate {
 }
 
 let args = Array(CommandLine.arguments.dropFirst())
+// Drop a leading "--engine <name>" (read by EngineKind.current) so the
+// commands below only see their own arguments.
+let commands = args.count >= 2 && args[0] == "--engine" ? Array(args.dropFirst(2)) : args
 
-if let first = args.first, ["status", "captions"].contains(first) {
-    let command = args.joined(separator: " ")
+if let first = commands.first, ["status", "captions"].contains(first) {
+    let command = commands.joined(separator: " ")
     guard ["status", "captions on", "captions off"].contains(command) else { print(Control.usage); exit(2) }
     DistributedNotificationCenter.default().addObserver(forName: Control.reply, object: nil, queue: .main) { note in
         print(note.object as? String ?? "")
@@ -266,12 +299,25 @@ if let first = args.first, ["status", "captions"].contains(first) {
 
 // `Parakeet --bench file.wav` plays a 16 kHz float32 WAV into the engine in
 // real time and prints what it heard and the CPU time it took.
-if args.count == 2, args[0] == "--bench" {
-    let data = try! Data(contentsOf: URL(fileURLWithPath: args[1]))
-    let pcm = data[(data.range(of: Data("data".utf8))!.upperBound + 4)...]
+if commands.count == 2, commands[0] == "--bench" {
+    let data = try! Data(contentsOf: URL(fileURLWithPath: commands[1]))
+    // Find the start of the "data" chunk's payload: its own 4-byte size field
+    // sits between the id and the samples, and other chunks may come first.
+    var pcm = Data()
+    var offset = 12  // past RIFF size and WAVE id
+    while offset + 8 <= data.count {
+        let id = data[offset..<offset + 4]
+        let size = data[offset + 4..<offset + 8].withUnsafeBytes { $0.load(as: UInt32.self) }
+        if id == Data("data".utf8) {
+            pcm = data[(offset + 8)..<min(offset + 8 + Int(size), data.count)]
+            break
+        }
+        offset += 8 + Int(size) + Int(size % 2)  // chunks are 2-byte aligned
+    }
+    guard !pcm.isEmpty else { print("no data chunk in", commands[1]); exit(2) }
     let started = Date()
-    var engine: NemotronEngine?
-    engine = NemotronEngine { event in
+    var engine: Engine?
+    engine = EngineKind.current.make(rehearseFirstLaunch: false) { event in
         let t = String(format: "%5.2f", Date().timeIntervalSince(started))
         switch event {
         case .downloading, .preparing: break
@@ -290,6 +336,10 @@ if args.count == 2, args[0] == "--bench" {
                 }
                 // The tap keeps streaming silence after speech stops.
                 for _ in 0..<30 { engine?.send(Data(count: step)); Thread.sleep(forTimeInterval: 0.1) }
+                // Ultra's sliding window still holds up to a chunk of audio; flush it.
+                let sem = DispatchSemaphore(value: 0)
+                Task { await engine?.finish(); sem.signal() }
+                sem.wait()
                 print(String(format: "cpu %.0f%% of one core", (cpuTime() - cpu0) / Date().timeIntervalSince(t0) * 100))
                 exit(0)
             }
