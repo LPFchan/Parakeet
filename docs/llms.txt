@@ -1,0 +1,25 @@
+# Parakeet
+
+> Live captions for everything a Mac plays: videos, calls, podcasts. Korean, Japanese, English and about 30 more languages, detected on their own, with optional translation into about 20 languages. Speech recognition runs entirely on the Mac's Neural Engine and translation uses Apple's on-device models; no audio or text leaves the Mac. Free and open source (MIT), for Apple silicon Macs on macOS 15 or later.
+
+- Download: https://github.com/LPFchan/parakeet/releases/latest/download/Parakeet.dmg
+- Source, README and build instructions: https://github.com/LPFchan/parakeet
+- Release notes: https://github.com/LPFchan/parakeet/releases
+
+## Using it
+
+- Captions appear in a floating box whenever something speaks. It can be dragged anywhere and hides when nothing is speaking. Hovering shows buttons to turn captions off, copy the transcript, and pick a language to translate into.
+- With a translation language picked, the translation shows large and the original small underneath. Speech already in that language isn't captioned.
+- The menu bar icon has a Captions on/off switch (⌘L), Copy Transcript, Translate To, Open at Login and Check for Updates. Updates install through Sparkle.
+- The same switch works from a terminal: `/Applications/Parakeet.app/Contents/MacOS/Parakeet status` and `... captions on|off`.
+
+## First launch
+
+Parakeet isn't notarized by Apple, so the first launch needs System Settings → Privacy & Security → Open Anyway. A welcome window then asks for permission to capture system audio and downloads the speech model (about 640 MB) from Hugging Face.
+
+## How it works
+
+- System audio is captured with a Core Audio process tap and converted to 16 kHz mono.
+- Speech is recognised by NVIDIA's Nemotron 3.5 ASR (https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b), streaming, via FluidAudio's Core ML build (https://github.com/FluidInference/FluidAudio). Words are never rewritten once shown.
+- Power, measured on an M2: about 0.12 W while captioning (about 40 mW CPU, 80 mW Neural Engine), about a tenth of one CPU core, and about 1 mW idle.
+- Translation uses Apple's Translation framework; macOS downloads each language once.

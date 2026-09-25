@@ -1,0 +1,6 @@
+# Search engines and AI agents are welcome to read and cite everything here.
+User-agent: *
+Content-Signal: search=yes, ai-input=yes, ai-train=yes
+Allow: /
+
+Sitemap: https://parakeet.lost.plus/sitemap.xml
